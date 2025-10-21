@@ -4,7 +4,7 @@ import time
 import pybullet as p
 
 
-CAMERA_TYPE = "ROTATE_AROUND_CAR"  # Options: "FIXED", "FOLLOW_CAR", "ROTATE_AROUND_CAR"
+CAMERA_TYPE = "FOLLOW_CAR"  # Options: "FIXED", "FOLLOW_CAR", "ROTATE_AROUND_CAR"
 MOVE_DECISION = "KEYBOARD"  # Options: "DEFAULT", "AI", "KEYBOARD"
 SIMPLIFIED_MODEL = False
 MAX_STEERING_ANGLE = math.radians(10.0)
@@ -20,7 +20,6 @@ CAR_BODY_BLOCKS = [
     (-0.6, 0.3, 0.7, 0.2, 0.4,BASE_COLOR),  # Center cell upper
     (0, 0.3, 0.3, 0.2, 0.4,HELMET_COLOR),  # Center cell upper
 ]
-
 
 ###################################
 
