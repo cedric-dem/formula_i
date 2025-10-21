@@ -7,7 +7,7 @@ import pybullet_data
 
 
 CAMERA_TYPE = "FOLLOW_CAR"  # Options: "FIXED", "FOLLOW_CAR"
-MOVE_DECISION = "DEFAULT" #Options: "DEFAULT", "AI", "KEYBOARD"
+MOVE_DECISION = "KEYBOARD" #Options: "DEFAULT", "AI", "KEYBOARD"
 
 
 def getNextMove():
@@ -33,8 +33,23 @@ def getSensors():
 
 
 def getKeyboardMove():
-    #TODO
-    return [0.3, 0.0, 0.3]
+    keys = p.getKeyboardEvents()
+
+    def is_down(key_code):
+        return keys.get(key_code, 0) & p.KEY_IS_DOWN
+
+    throttle = 1.0 if (is_down(ord('z')) or is_down(p.B3G_UP_ARROW)) else 0.0
+    brake = 1.0 if (is_down(ord('s')) or is_down(p.B3G_DOWN_ARROW)) else 0.0
+
+    steering = 0.0
+    if is_down(ord('q')) or is_down(p.B3G_LEFT_ARROW):
+        steering += 1.0
+    if is_down(ord('d')) or is_down(p.B3G_RIGHT_ARROW):
+        steering -= 1.0
+
+    steering = max(-1.0, min(1.0, steering))
+
+    return [steering, brake, throttle]
 
 p.connect(p.GUI)
 p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
