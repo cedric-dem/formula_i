@@ -6,9 +6,10 @@ done :
 	camera
 	keyboard interactions
 	obstacles handling
+	blue sky
 
 todo:
-	grey ground and blue sky
+	grey ground
 	model car
 	model track
 	multiple track

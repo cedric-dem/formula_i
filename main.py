@@ -56,7 +56,7 @@ def clamp(value, minimum, maximum):
 
 
 def initialize_simulation():
-    p.connect(p.GUI)
+    p.connect(p.GUI, options='--background_color_red=0.0 --background_color_green=0.0 --background_color_blue=1.0')
     p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
     p.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, 0)
     p.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, 0)
