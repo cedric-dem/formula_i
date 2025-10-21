@@ -4,11 +4,29 @@ import time
 import pybullet as p
 
 
-CAMERA_TYPE = "FOLLOW_CAR"  # Options: "FIXED", "FOLLOW_CAR"
+CAMERA_TYPE = "ROTATE_AROUND_CAR"  # Options: "FIXED", "FOLLOW_CAR", "ROTATE_AROUND_CAR"
 MOVE_DECISION = "KEYBOARD"  # Options: "DEFAULT", "AI", "KEYBOARD"
-
+SIMPLIFIED_MODEL = False
 MAX_STEERING_ANGLE = math.radians(10.0)
 
+BASE_COLOR = (0.9, 0.1, 0.1)
+HELMET_COLOR = (0.1, 0.1, 0.1)
+CAR_BODY_BLOCKS = [
+    # (delta_x, delta_z, size_x, size_y, size_z, color_rgb)
+    (0,0, 1.7, 1.5, 0.5, BASE_COLOR),  # Main chassis
+    (0.4, 0.0, 3.7, 0.4, 0.4,BASE_COLOR),  # chassis lengthwise
+    (2.4, -0.24, 0.5, 1.4, 0.1,  BASE_COLOR),  # Front wing assembly
+    (-1.9, 0.24, 0.3, 1.0, 0.3, BASE_COLOR) ,  # Rear wing assembly
+    (-0.6, 0.3, 0.7, 0.2, 0.4,BASE_COLOR),  # Center cell upper
+    (0, 0.3, 0.3, 0.2, 0.4,HELMET_COLOR),  # Center cell upper
+]
+
+
+###################################
+
+camera_rotation_angle = 0.0
+
+###################################
 
 def get_next_move():
     """Return the steering, brake and throttle values for the next step."""
@@ -139,17 +157,21 @@ def create_ramp(ramp_height, lateral_delta):
     )
 
 
-
 def create_car():
-    car_body_half_extents = [1.0, 0.3, 0.05]
-    wheel_radius = 0.25
-    wheel_width = 0.3
+    block_specs = CAR_BODY_BLOCKS if not SIMPLIFIED_MODEL else CAR_BODY_BLOCKS[:1]
+
+    base_block = block_specs[0]
+    base_delta_x, base_delta_z = base_block[:2]
+    base_color = list(base_block[-1]) + [1.0]
+    base_half_extents = [base_block[2] / 2.0, base_block[3] / 2.0, base_block[4] / 2.0]
+    wheel_radius = 0.321
+    wheel_width = 0.350
 
     car_body_collision = p.createCollisionShape(
-        p.GEOM_BOX, halfExtents=car_body_half_extents
+        p.GEOM_BOX, halfExtents=base_half_extents
     )
     car_body_visual = p.createVisualShape(
-        p.GEOM_BOX, halfExtents=car_body_half_extents, rgbaColor=[0.8, 0.1, 0.1, 1]
+        p.GEOM_BOX, halfExtents=base_half_extents, rgbaColor=base_color
     )
 
     wheel_collision = p.createCollisionShape(
@@ -159,19 +181,71 @@ def create_car():
         p.GEOM_CYLINDER, radius=wheel_radius, length=wheel_width, rgbaColor=[0.1, 0.1, 0.1, 1]
     )
 
+    #center of f1 is center of all 4 wheels
+
+    front_wheels_distance_to_center = 1.56
+    front_wheels_distance_to_center_laterally = 0.542
+    height_of_front_wheels = -0.2
+    back_wheels_distance_to_center = -1.56
+    back_wheels_distance_to_center_laterally = 0.542
+    height_back_wheels = -0.2
+
     wheel_offsets = [
-        [0.8, 0.45, -0.25],  # Front-right
-        [0.8, -0.45, -0.25],  # Front-left
-        [-0.8, 0.45, -0.25],  # Rear-right
-        [-0.8, -0.45, -0.25],  # Rear-left
+        [front_wheels_distance_to_center, front_wheels_distance_to_center_laterally, height_of_front_wheels],  # Front-right
+        [front_wheels_distance_to_center, -front_wheels_distance_to_center_laterally, height_of_front_wheels],  # Front-left
+        [back_wheels_distance_to_center, back_wheels_distance_to_center_laterally, height_back_wheels],  # Rear-right
+        [back_wheels_distance_to_center, -back_wheels_distance_to_center_laterally, height_back_wheels],  # Rear-left
     ]
     wheel_orientation = p.getQuaternionFromEuler([math.pi / 2, 0, 0])
 
-    link_joint_axes = []
-    for link_index in range(4):
-        if link_index in (0,1):
-            link_joint_axes.append([0, 1, 0])
-        else:
+    link_joint_axes = [
+        [0, 1, 0],
+        [0, 1, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+    ]
+
+    link_masses = [0.5] * 4
+    link_collision_indices = [wheel_collision] * 4
+    link_visual_indices = [wheel_visual] * 4
+    link_positions = wheel_offsets[:]
+    link_orientations = [wheel_orientation] * 4
+    link_inertial_positions = [[0, 0, 0]] * 4
+    link_inertial_orientations = [wheel_orientation] * 4
+    link_parent_indices = [0, 0, 0, 0]
+    link_joint_types = [
+        p.JOINT_REVOLUTE,
+        p.JOINT_REVOLUTE,
+        p.JOINT_FIXED,
+        p.JOINT_FIXED,
+    ]
+
+    identity_orientation = p.getQuaternionFromEuler([0, 0, 0])
+
+    if len(block_specs) > 1:
+        for index, block in enumerate(block_specs[1:], start=1):
+            half_extents = [block[2] / 2.0, block[3] / 2.0, block[4] / 2.0]
+            block_collision = p.createCollisionShape(
+                p.GEOM_BOX, halfExtents=half_extents
+            )
+
+            block_visual = p.createVisualShape(
+                p.GEOM_BOX,
+                halfExtents=half_extents,
+                rgbaColor=list(block[-1]) + [1.0],
+            )
+
+            link_masses.append(0.1)
+            link_collision_indices.append(block_collision)
+            link_visual_indices.append(block_visual)
+            link_positions.append(
+                [block[0] - base_delta_x, 0.0, block[1] - base_delta_z]
+            )
+            link_orientations.append(identity_orientation)
+            link_inertial_positions.append([0, 0, 0])
+            link_inertial_orientations.append(identity_orientation)
+            link_parent_indices.append(0)
+            link_joint_types.append(p.JOINT_FIXED)
             link_joint_axes.append([0, 0, 0])
 
     car_body = p.createMultiBody(
@@ -180,27 +254,24 @@ def create_car():
         baseVisualShapeIndex=car_body_visual,
         basePosition=[0, 0, 0.3],
         baseOrientation=p.getQuaternionFromEuler([0, 0, 0]),
-        linkMasses=[0.5] * 4,
-        linkCollisionShapeIndices=[wheel_collision] * 4,
-        linkVisualShapeIndices=[wheel_visual] * 4,
-        linkPositions=wheel_offsets,
-        linkOrientations=[wheel_orientation] * 4,
-        linkInertialFramePositions=[[0, 0, 0]] * 4,
-        linkInertialFrameOrientations=[wheel_orientation] * 4,
-        linkParentIndices=[0, 0, 0, 0],
-        linkJointTypes=[
-            p.JOINT_REVOLUTE,
-            p.JOINT_REVOLUTE,
-            p.JOINT_FIXED,
-            p.JOINT_FIXED,
-        ],
+        linkMasses=link_masses,
+        linkCollisionShapeIndices=link_collision_indices,
+        linkVisualShapeIndices=link_visual_indices,
+        linkPositions=link_positions,
+        linkOrientations=link_orientations,
+        linkInertialFramePositions=link_inertial_positions,
+        linkInertialFrameOrientations=link_inertial_orientations,
+        linkParentIndices=link_parent_indices,
+        linkJointTypes=link_joint_types,
         linkJointAxis=link_joint_axes,
     )
 
     # Increase friction so the car can grip ramps and terrain.
     p.changeDynamics(car_body, -1, lateralFriction=1.0)
-    for link_index in range(4):
+    for link_index in range(p.getNumJoints(car_body)):
         p.changeDynamics(car_body, link_index, lateralFriction=1.0)
+
+    # Disable default joint motors so we can control the steering angle manually.
 
     # Disable default joint motors so we can control the steering angle manually.
     for joint_index in range(2):
@@ -232,7 +303,29 @@ def apply_steering_to_front_wheels(car_body, steering_input):
             force=100,
         )
 
-def update_camera(car_position, yaw):
+
+def update_camera(car_position, yaw, dt):
+    global camera_rotation_angle
+
+    if CAMERA_TYPE == "ROTATE_AROUND_CAR":
+        angular_speed = math.radians(30.0)
+        camera_rotation_angle = (camera_rotation_angle + angular_speed * dt) % (
+            2 * math.pi
+        )
+
+        orbit_radius = 7.0
+        orbit_height = 3.0
+        camera_distance = math.sqrt(orbit_radius**2 + orbit_height**2)
+        camera_yaw = math.degrees(camera_rotation_angle)
+        camera_pitch = -math.degrees(math.atan2(orbit_height, orbit_radius))
+        p.resetDebugVisualizerCamera(
+            cameraDistance=camera_distance,
+            cameraYaw=camera_yaw,
+            cameraPitch=camera_pitch,
+            cameraTargetPosition=car_position,
+        )
+        return
+
     if CAMERA_TYPE != "FOLLOW_CAR":
         return
 
@@ -247,8 +340,6 @@ def update_camera(car_position, yaw):
         cameraPitch=camera_pitch,
         cameraTargetPosition=car_position,
     )
-
-
 def update_vehicle_state(car_body, yaw, current_speed, turn, brake, throttle, dt):
     max_speed = 10.0
     acceleration_rate = 5.0
@@ -284,7 +375,7 @@ def update_vehicle_state(car_body, yaw, current_speed, turn, brake, throttle, dt
         angularVelocity=current_angular_velocity,
     )
 
-    update_camera(car_position, yaw)
+    update_camera(car_position, yaw, dt)
 
     return yaw, current_speed
 

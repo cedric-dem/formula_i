@@ -8,13 +8,15 @@ done :
 	obstacles handling
 	blue sky
 	green ground
+	wheels turn when input says so
+    setting simple car
 
 todo:
-	model car + wheels turn when input says so, + setting simple car ?
+	model car
 	model track
 	realistic turning depending on the speed
-	realistic speed acceleration rate (even micic real gearbox ?)
-	realistic braking rate depending on the spee
+	realistic speed acceleration rate (even mimic real gearbox ?)
+	realistic braking rate depending on the speed
 	grip/drift behaviour
 	multiple track
 	multiple cars
