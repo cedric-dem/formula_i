@@ -73,10 +73,21 @@ def initialize_simulation():
 
 
 def setup_environment():
-    p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -9.81)
 
-    p.loadURDF("plane.urdf")
+    ground_half_extents = [150.0, 150.0, 0.1]
+    ground_collision = p.createCollisionShape(
+        p.GEOM_BOX, halfExtents=ground_half_extents
+    )
+    ground_visual = p.createVisualShape(
+        p.GEOM_BOX, halfExtents=ground_half_extents, rgbaColor=[0.0, 1, 0.0, 1]
+    )
+    p.createMultiBody(
+        baseMass=0,
+        baseCollisionShapeIndex=ground_collision,
+        baseVisualShapeIndex=ground_visual,
+        basePosition=[0, 0, -ground_half_extents[2]],
+    )
 
     for height, lateral_shift in ((6, 0), (12, 10), (18, 20)):
         create_ramp(height, lateral_shift)

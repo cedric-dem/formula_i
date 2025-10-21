@@ -7,9 +7,9 @@ done :
 	keyboard interactions
 	obstacles handling
 	blue sky
+	green ground
 
 todo:
-	grey ground
 	model car
 	model track
 	multiple track
