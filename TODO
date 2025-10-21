@@ -2,10 +2,10 @@
 
 done :
 	basic car
-	throttle, steering, braking 
+	throttle, steering, braking
+	camera
 
 todo:
-	camera
 	grey ground and blue sky
 	keyboard interactins
 	obstacles handling 

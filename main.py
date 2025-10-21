@@ -7,10 +7,33 @@ import pybullet_data
 
 
 CAMERA_TYPE = "FOLLOW_CAR"  # Options: "FIXED", "FOLLOW_CAR"
+MOVE_DECISION = "DEFAULT" #Options: "DEFAULT", "AI", "KEYBOARD"
 
 
 def getNextMove():
     #turn radius, between -1 and 1, brake between 0 and 1, throttle between 0 and 1
+    if MOVE_DECISION == "DEFAULT":
+        return [0.3, 0.0, 0.3]
+
+    elif MOVE_DECISION == "AI":
+        return getAIDecision(getSensors())
+
+    elif MOVE_DECISION == "KEYBOARD":
+        return getKeyboardMove()
+
+    return None
+
+def getAIDecision(sensors):
+    #TODO
+    return [0.3, 0.0, 0.3]
+
+def getSensors():
+    #TODO
+    return [0,1,0,0,2]
+
+
+def getKeyboardMove():
+    #TODO
     return [0.3, 0.0, 0.3]
 
 p.connect(p.GUI)
