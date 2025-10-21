@@ -1,8 +1,12 @@
+
 import math
 import time
 
 import pybullet as p
 import pybullet_data
+
+
+CAMERA_TYPE = "FOLLOW_CAR"  # Options: "FIXED", "FOLLOW_CAR"
 
 
 def getNextMove():
@@ -15,12 +19,13 @@ p.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, 0)
 p.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, 0)
 p.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW, 0)
 p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)
-p.resetDebugVisualizerCamera(
-	cameraDistance=5,
-	cameraYaw=45,
-	cameraPitch=-30,
-	cameraTargetPosition=[0, 0, 0]
-)
+if CAMERA_TYPE == "FIXED":
+    p.resetDebugVisualizerCamera(
+            cameraDistance=5,
+            cameraYaw=45,
+            cameraPitch=-30,
+            cameraTargetPosition=[0, 0, 0]
+    )
 
 p.setAdditionalSearchPath(pybullet_data.getDataPath())
 p.setGravity(0, 0, -9.81)
@@ -98,6 +103,27 @@ for _ in range(240 * 5):
 
     car_orientation = p.getQuaternionFromEuler([0.0, 0.0, yaw])
     p.resetBasePositionAndOrientation(car_body, car_position, car_orientation)
+
+    if CAMERA_TYPE == "FOLLOW_CAR":
+        follow_distance = 5.0
+        follow_height = 2.0
+        offset = [
+            -forward_vector[0] * follow_distance,
+            -forward_vector[1] * follow_distance,
+            follow_height,
+        ]
+        planar_distance = math.sqrt(offset[0] ** 2 + offset[1] ** 2)
+        camera_distance = math.sqrt(planar_distance ** 2 + offset[2] ** 2)
+        camera_yaw = math.degrees(math.atan2(offset[1], offset[0]))
+        camera_pitch = -math.degrees(
+            math.atan2(offset[2], max(planar_distance, 1e-6))
+        )
+        p.resetDebugVisualizerCamera(
+            cameraDistance=camera_distance,
+            cameraYaw=camera_yaw,
+            cameraPitch=camera_pitch,
+            cameraTargetPosition=car_position,
+        )
 
     p.stepSimulation()
     time.sleep(dt)
