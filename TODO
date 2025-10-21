@@ -5,10 +5,10 @@ done :
 	throttle, steering, braking
 	camera
 	keyboard interactions
+	obstacles handling
 
 todo:
 	grey ground and blue sky
-	obstacles handling 
 	model car
 	model track
 	multiple track

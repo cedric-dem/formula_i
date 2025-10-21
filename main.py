@@ -164,6 +164,7 @@ car_body = p.createMultiBody(
     linkJointAxis=[[0, 0, 0]] * 4,
 )
 
+
 dt = 1 / 240
 max_speed = 10.0
 acceleration_rate = 5.0
@@ -171,11 +172,16 @@ brake_deceleration = 10.0
 turn_speed = 1.0
 
 current_speed = 0.0
-car_position, car_orientation = p.getBasePositionAndOrientation(car_body)
-car_position = list(car_position)
+_, car_orientation = p.getBasePositionAndOrientation(car_body)
 _, _, yaw = p.getEulerFromQuaternion(car_orientation)
 
-for _ in range(240 * 5):
+# Increase friction so the car can grip ramps and terrain.
+p.changeDynamics(car_body, -1, lateralFriction=1.0)
+for link_index in range(4):
+    p.changeDynamics(car_body, link_index, lateralFriction=1.0)
+
+
+while True:
     turn, brake, throttle = getNextMove()
 
     turn = max(-1.0, min(1.0, float(turn)))
@@ -187,13 +193,28 @@ for _ in range(240 * 5):
     current_speed = max(current_speed - brake * brake_deceleration * dt, 0.0)
 
     yaw += turn * turn_speed * dt
-    forward_vector = [math.cos(yaw), math.sin(yaw), 0.0]
-    car_position[0] += forward_vector[0] * current_speed * dt
-    car_position[1] += forward_vector[1] * current_speed * dt
 
-    car_orientation = p.getQuaternionFromEuler([0.0, 0.0, yaw])
+    # Keep the physics-driven position but steer the chassis to face the desired direction.
+    car_position, physics_orientation = p.getBasePositionAndOrientation(car_body)
+    current_linear_velocity, current_angular_velocity = p.getBaseVelocity(car_body)
+
+    roll, pitch, _ = p.getEulerFromQuaternion(physics_orientation)
+    car_orientation = p.getQuaternionFromEuler([roll, pitch, yaw])
+
+    # Keep the physics-driven position while steering the chassis to face the desired direction.
     p.resetBasePositionAndOrientation(car_body, car_position, car_orientation)
 
+    forward_vector = [math.cos(yaw), math.sin(yaw), 0.0]
+    linear_velocity = [
+        forward_vector[0] * current_speed,
+        forward_vector[1] * current_speed,
+        current_linear_velocity[2],
+    ]
+    p.resetBaseVelocity(
+        car_body,
+        linearVelocity=linear_velocity,
+        angularVelocity=current_angular_velocity,
+    )
     if CAMERA_TYPE == "FOLLOW_CAR":
         follow_distance = 5.0
         follow_height = 2.0
