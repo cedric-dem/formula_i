@@ -51,6 +51,45 @@ def getKeyboardMove():
 
     return [steering, brake, throttle]
 
+
+def createRamp():
+    ramp_length = 30.0
+    ramp_width = 6.0
+    ramp_height = 6.0
+    ramp_thickness = 0.5
+
+    half_length = ramp_length / 2.0
+    half_width = ramp_width / 2.0
+    half_thickness = ramp_thickness / 2.0
+
+    ramp_angle = -math.atan2(ramp_height, ramp_length)
+
+    cos_angle = math.cos(ramp_angle)
+    sin_angle = math.sin(ramp_angle)
+
+    # Position the ramp so the lower edge sits on the ground at the origin.
+    bottom_local_x = -half_length
+    bottom_local_z = -half_thickness
+    ramp_center_x = -(bottom_local_x * cos_angle + bottom_local_z * sin_angle)
+    ramp_center_z = -(-bottom_local_x * sin_angle + bottom_local_z * cos_angle)
+
+    ramp_half_extents = [half_length, half_width, half_thickness]
+    ramp_collision = p.createCollisionShape(
+        p.GEOM_BOX, halfExtents = ramp_half_extents
+    )
+    ramp_visual = p.createVisualShape(
+        p.GEOM_BOX, halfExtents = ramp_half_extents, rgbaColor = [0.5, 0.5, 0.5, 1]
+    )
+
+    p.createMultiBody(
+        baseMass = 0,
+        baseCollisionShapeIndex = ramp_collision,
+        baseVisualShapeIndex = ramp_visual,
+        basePosition = [ramp_center_x, 0, ramp_center_z],
+        baseOrientation = p.getQuaternionFromEuler([0, ramp_angle, 0]),
+    )
+
+
 p.connect(p.GUI)
 p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
 p.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, 0)
@@ -69,6 +108,9 @@ p.setAdditionalSearchPath(pybullet_data.getDataPath())
 p.setGravity(0, 0, -9.81)
 
 plane_id = p.loadURDF("plane.urdf")
+
+
+createRamp()
 
 car_body_half_extents = [1.0, 0.5, 0.05]
 wheel_half_extents = [0.2, 0.2, 0.2]

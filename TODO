@@ -4,10 +4,10 @@ done :
 	basic car
 	throttle, steering, braking
 	camera
+	keyboard interactions
 
 todo:
 	grey ground and blue sky
-	keyboard interactins
 	obstacles handling 
 	model car
 	model track
