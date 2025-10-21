@@ -52,11 +52,13 @@ def getKeyboardMove():
     return [steering, brake, throttle]
 
 
-def createRamp():
+def createRamp(ramp_height, lateral_delta):
+
     ramp_length = 30.0
     ramp_width = 6.0
-    ramp_height = 6.0
     ramp_thickness = 0.5
+    ramp_start_offset_x = 15.0
+    ramp_start_depth = -2.0  # Negative value lowers the ramp entrance below ground level
 
     half_length = ramp_length / 2.0
     half_width = ramp_width / 2.0
@@ -67,11 +69,13 @@ def createRamp():
     cos_angle = math.cos(ramp_angle)
     sin_angle = math.sin(ramp_angle)
 
-    # Position the ramp so the lower edge sits on the ground at the origin.
+    # Position the ramp so the lower edge sits on the ground away from the origin.
     bottom_local_x = -half_length
     bottom_local_z = -half_thickness
-    ramp_center_x = -(bottom_local_x * cos_angle + bottom_local_z * sin_angle)
-    ramp_center_z = -(-bottom_local_x * sin_angle + bottom_local_z * cos_angle)
+    ramp_center_x = ramp_start_offset_x - (
+        bottom_local_x * cos_angle + bottom_local_z * sin_angle
+    )
+    ramp_center_z = ramp_start_depth - (-bottom_local_x * sin_angle + bottom_local_z * cos_angle)
 
     ramp_half_extents = [half_length, half_width, half_thickness]
     ramp_collision = p.createCollisionShape(
@@ -81,13 +85,17 @@ def createRamp():
         p.GEOM_BOX, halfExtents = ramp_half_extents, rgbaColor = [0.5, 0.5, 0.5, 1]
     )
 
+    ramp_center_y = lateral_delta
+
     p.createMultiBody(
         baseMass = 0,
         baseCollisionShapeIndex = ramp_collision,
         baseVisualShapeIndex = ramp_visual,
-        basePosition = [ramp_center_x, 0, ramp_center_z],
+        basePosition = [ramp_center_x, ramp_center_y, ramp_center_z],
         baseOrientation = p.getQuaternionFromEuler([0, ramp_angle, 0]),
     )
+
+
 
 
 p.connect(p.GUI)
@@ -110,7 +118,9 @@ p.setGravity(0, 0, -9.81)
 plane_id = p.loadURDF("plane.urdf")
 
 
-createRamp()
+createRamp(6,0)
+createRamp(12,10)
+createRamp(18,20)
 
 car_body_half_extents = [1.0, 0.5, 0.05]
 wheel_half_extents = [0.2, 0.2, 0.2]
