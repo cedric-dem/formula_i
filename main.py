@@ -2,11 +2,12 @@ import math
 import time
 
 import pybullet as p
-import pybullet_data
 
 
 CAMERA_TYPE = "FOLLOW_CAR"  # Options: "FIXED", "FOLLOW_CAR"
 MOVE_DECISION = "KEYBOARD"  # Options: "DEFAULT", "AI", "KEYBOARD"
+
+MAX_STEERING_ANGLE = math.radians(10.0)
 
 
 def get_next_move():
@@ -138,9 +139,11 @@ def create_ramp(ramp_height, lateral_delta):
     )
 
 
+
 def create_car():
-    car_body_half_extents = [1.0, 0.5, 0.05]
-    wheel_half_extents = [0.2, 0.2, 0.2]
+    car_body_half_extents = [1.0, 0.3, 0.05]
+    wheel_radius = 0.25
+    wheel_width = 0.3
 
     car_body_collision = p.createCollisionShape(
         p.GEOM_BOX, halfExtents=car_body_half_extents
@@ -150,10 +153,10 @@ def create_car():
     )
 
     wheel_collision = p.createCollisionShape(
-        p.GEOM_BOX, halfExtents=wheel_half_extents
+        p.GEOM_CYLINDER, radius=wheel_radius, height=wheel_width
     )
     wheel_visual = p.createVisualShape(
-        p.GEOM_BOX, halfExtents=wheel_half_extents, rgbaColor=[0.1, 0.1, 0.1, 1]
+        p.GEOM_CYLINDER, radius=wheel_radius, length=wheel_width, rgbaColor=[0.1, 0.1, 0.1, 1]
     )
 
     wheel_offsets = [
@@ -162,6 +165,14 @@ def create_car():
         [-0.8, 0.45, -0.25],  # Rear-right
         [-0.8, -0.45, -0.25],  # Rear-left
     ]
+    wheel_orientation = p.getQuaternionFromEuler([math.pi / 2, 0, 0])
+
+    link_joint_axes = []
+    for link_index in range(4):
+        if link_index in (0,1):
+            link_joint_axes.append([0, 1, 0])
+        else:
+            link_joint_axes.append([0, 0, 0])
 
     car_body = p.createMultiBody(
         baseMass=2,
@@ -173,12 +184,17 @@ def create_car():
         linkCollisionShapeIndices=[wheel_collision] * 4,
         linkVisualShapeIndices=[wheel_visual] * 4,
         linkPositions=wheel_offsets,
-        linkOrientations=[p.getQuaternionFromEuler([0, 0, 0])] * 4,
+        linkOrientations=[wheel_orientation] * 4,
         linkInertialFramePositions=[[0, 0, 0]] * 4,
-        linkInertialFrameOrientations=[p.getQuaternionFromEuler([0, 0, 0])] * 4,
+        linkInertialFrameOrientations=[wheel_orientation] * 4,
         linkParentIndices=[0, 0, 0, 0],
-        linkJointTypes=[p.JOINT_FIXED] * 4,
-        linkJointAxis=[[0, 0, 0]] * 4,
+        linkJointTypes=[
+            p.JOINT_REVOLUTE,
+            p.JOINT_REVOLUTE,
+            p.JOINT_FIXED,
+            p.JOINT_FIXED,
+        ],
+        linkJointAxis=link_joint_axes,
     )
 
     # Increase friction so the car can grip ramps and terrain.
@@ -186,8 +202,35 @@ def create_car():
     for link_index in range(4):
         p.changeDynamics(car_body, link_index, lateralFriction=1.0)
 
+    # Disable default joint motors so we can control the steering angle manually.
+    for joint_index in range(2):
+        p.setJointMotorControl2(
+            car_body,
+            joint_index,
+            controlMode=p.VELOCITY_CONTROL,
+            targetVelocity=0,
+            force=0,
+        )
+
     return car_body
 
+
+def apply_steering_to_front_wheels(car_body, steering_input):
+    steering_angle = clamp(float(steering_input), -1.0, 1.0) * MAX_STEERING_ANGLE
+
+    for joint_index in(0,1):
+        # Manually set the joint state so the wheel visuals immediately reflect the
+        # current steering command. Using resetJointState ensures the links rotate
+        # with the base orientation updates that are applied elsewhere in the
+        # simulation loop.
+        p.resetJointState(car_body, joint_index, steering_angle)
+        p.setJointMotorControl2(
+            car_body,
+            joint_index,
+            controlMode=p.POSITION_CONTROL,
+            targetPosition=steering_angle,
+            force=100,
+        )
 
 def update_camera(car_position, yaw):
     if CAMERA_TYPE != "FOLLOW_CAR":
@@ -196,7 +239,7 @@ def update_camera(car_position, yaw):
     follow_distance = 5.0
     follow_height = 2.0
     camera_distance = math.sqrt(follow_distance**2 + follow_height**2)
-    camera_yaw = math.degrees(yaw) - 90
+    camera_yaw = math.degrees(yaw) - 70
     camera_pitch = -math.degrees(math.atan2(follow_height, follow_distance))
     p.resetDebugVisualizerCamera(
         cameraDistance=camera_distance,
@@ -254,6 +297,7 @@ def run_simulation(car_body):
 
     while True:
         turn, brake, throttle = get_next_move()
+        apply_steering_to_front_wheels(car_body, turn)
         yaw, current_speed = update_vehicle_state(
             car_body, yaw, current_speed, turn, brake, throttle, dt
         )
@@ -266,6 +310,7 @@ def main():
     initialize_simulation()
     setup_environment()
     car_body = create_car()
+    apply_steering_to_front_wheels(car_body, 0.0)
 
     try:
         run_simulation(car_body)

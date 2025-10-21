@@ -10,8 +10,12 @@ done :
 	green ground
 
 todo:
-	model car
+	model car + wheels turn when input says so, + setting simple car ?
 	model track
+	realistic turning depending on the speed
+	realistic speed acceleration rate (even micic real gearbox ?)
+	realistic braking rate depending on the spee
+	grip/drift behaviour
 	multiple track
 	multiple cars
 	sensors of car
