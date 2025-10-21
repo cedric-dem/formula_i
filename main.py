@@ -107,16 +107,10 @@ for _ in range(240 * 5):
     if CAMERA_TYPE == "FOLLOW_CAR":
         follow_distance = 5.0
         follow_height = 2.0
-        offset = [
-            -forward_vector[0] * follow_distance,
-            -forward_vector[1] * follow_distance,
-            follow_height,
-        ]
-        planar_distance = math.sqrt(offset[0] ** 2 + offset[1] ** 2)
-        camera_distance = math.sqrt(planar_distance ** 2 + offset[2] ** 2)
-        camera_yaw = math.degrees(math.atan2(offset[1], offset[0]))
+        camera_distance = math.sqrt(follow_distance ** 2 + follow_height ** 2)
+        camera_yaw = math.degrees(yaw) - 90
         camera_pitch = -math.degrees(
-            math.atan2(offset[2], max(planar_distance, 1e-6))
+            math.atan2(follow_height, follow_distance)
         )
         p.resetDebugVisualizerCamera(
             cameraDistance=camera_distance,
