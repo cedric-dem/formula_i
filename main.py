@@ -53,116 +53,47 @@ class Car:
     def _create_car(self):
         block_specs = CAR_BODY_BLOCKS if not SIMPLIFIED_MODEL else CAR_BODY_BLOCKS[:1]
 
-        base_block = block_specs[0]
-        base_delta_x, base_delta_z = base_block[:2]
-        base_color = list(base_block[-1]) + [1.0]
-        base_half_extents = [
-            base_block[2] / 2.0,
-            base_block[3] / 2.0,
-            base_block[4] / 2.0,
-        ]
-        wheel_radius = 0.321
-        wheel_width = 0.350
+        (
+            car_body_collision,
+            car_body_visual,
+            base_delta_x,
+            base_delta_z,
+        ) = self._create_body(block_specs[0])
 
-        car_body_collision = p.createCollisionShape(
-            p.GEOM_BOX, halfExtents=base_half_extents
-        )
-        car_body_visual = p.createVisualShape(
-            p.GEOM_BOX, halfExtents=base_half_extents, rgbaColor=base_color
-        )
+        wheel_collision, wheel_visual = self._create_wheels()
 
-        wheel_collision = p.createCollisionShape(
-            p.GEOM_CYLINDER, radius=wheel_radius, height=wheel_width
-        )
-        wheel_visual = p.createVisualShape(
-            p.GEOM_CYLINDER,
-            radius=wheel_radius,
-            length=wheel_width,
-            rgbaColor=[0.2, 0.2, 0.2, 1],
-        )
-
-        front_wheels_distance_to_center = 1.66
-        back_wheels_distance_to_center = -1.46
-
-        front_wheels_distance_to_center_laterally = 0.717
-        back_wheels_distance_to_center_laterally = 0.717
-
-        height_of_front_wheels = 0
-        height_back_wheels = 0
-
-        wheel_offsets = [
-            [
-                front_wheels_distance_to_center,
-                front_wheels_distance_to_center_laterally,
-                height_of_front_wheels,
-            ],  # Front-right
-            [
-                front_wheels_distance_to_center,
-                -front_wheels_distance_to_center_laterally,
-                height_of_front_wheels,
-            ],  # Front-left
-            [
-                back_wheels_distance_to_center,
-                back_wheels_distance_to_center_laterally,
-                height_back_wheels,
-            ],  # Rear-right
-            [
-                back_wheels_distance_to_center,
-                -back_wheels_distance_to_center_laterally,
-                height_back_wheels,
-            ],  # Rear-left
-        ]
-        wheel_orientation = p.getQuaternionFromEuler([math.pi / 2, 0, 0])
-
-        link_joint_axes = [
-            [0, 1, 0],
-            [0, 1, 0],
-            [0, 0, 0],
-            [0, 0, 0],
-        ]
-
-        link_masses = [0.5] * 4
-        link_collision_indices = [wheel_collision] * 4
-        link_visual_indices = [wheel_visual] * 4
-        link_positions = wheel_offsets[:]
-        link_orientations = [wheel_orientation] * 4
-        link_inertial_positions = [[0, 0, 0]] * 4
-        link_inertial_orientations = [wheel_orientation] * 4
-        link_parent_indices = [0, 0, 0, 0]
-        link_joint_types = [
-            p.JOINT_REVOLUTE,
-            p.JOINT_REVOLUTE,
-            p.JOINT_FIXED,
-            p.JOINT_FIXED,
-        ]
+        (
+            link_masses,
+            link_collision_indices,
+            link_visual_indices,
+            link_positions,
+            link_orientations,
+            link_inertial_positions,
+            link_inertial_orientations,
+            link_parent_indices,
+            link_joint_types,
+            link_joint_axes,
+        ) = self._create_wheel_links(wheel_collision, wheel_visual)
 
         identity_orientation = p.getQuaternionFromEuler([0, 0, 0])
 
         if len(block_specs) > 1:
-            for index, block in enumerate(block_specs[1:], start=1):
-                half_extents = [block[2] / 2.0, block[3] / 2.0, block[4] / 2.0]
-                block_collision = p.createCollisionShape(
-                    p.GEOM_BOX, halfExtents=half_extents
-                )
-
-                block_visual = p.createVisualShape(
-                    p.GEOM_BOX,
-                    halfExtents=half_extents,
-                    rgbaColor=list(block[-1]) + [1.0],
-                )
-
-                link_masses.append(0.1)
-                link_collision_indices.append(block_collision)
-                link_visual_indices.append(block_visual)
-                link_positions.append(
-                    [block[0] - base_delta_x, 0.0, block[1] - base_delta_z]
-                )
-                link_orientations.append(identity_orientation)
-                link_inertial_positions.append([0, 0, 0])
-                link_inertial_orientations.append(identity_orientation)
-                link_parent_indices.append(0)
-                link_joint_types.append(p.JOINT_FIXED)
-                link_joint_axes.append([0, 0, 0])
+            self._add_body_blocks(
+                block_specs[1:],
+                base_delta_x,
+                base_delta_z,
+                identity_orientation,
+                link_masses,
+                link_collision_indices,
+                link_visual_indices,
+                link_positions,
+                link_orientations,
+                link_inertial_positions,
+                link_inertial_orientations,
+                link_parent_indices,
+                link_joint_types,
+                link_joint_axes,
+            )
 
         car_body = p.createMultiBody(
             baseMass=2,
@@ -196,6 +127,150 @@ class Car:
             )
 
         return car_body
+
+    def _create_body(self, base_block):
+        base_delta_x, base_delta_z = base_block[:2]
+        base_color = list(base_block[-1]) + [1.0]
+        base_half_extents = [
+            base_block[2] / 2.0,
+            base_block[3] / 2.0,
+            base_block[4] / 2.0,
+        ]
+
+        car_body_collision = p.createCollisionShape(
+            p.GEOM_BOX, halfExtents=base_half_extents
+        )
+        car_body_visual = p.createVisualShape(
+            p.GEOM_BOX, halfExtents=base_half_extents, rgbaColor=base_color
+        )
+
+        return car_body_collision, car_body_visual, base_delta_x, base_delta_z
+
+    def _create_wheels(self):
+        wheel_radius = 0.321
+        wheel_width = 0.350
+
+        wheel_collision = p.createCollisionShape(
+            p.GEOM_CYLINDER, radius=wheel_radius, height=wheel_width
+        )
+        wheel_visual = p.createVisualShape(
+            p.GEOM_CYLINDER,
+            radius=wheel_radius,
+            length=wheel_width,
+            rgbaColor=[0.2, 0.2, 0.2, 1],
+        )
+
+        return wheel_collision, wheel_visual
+
+    def _create_wheel_links(self, wheel_collision, wheel_visual):
+        front_wheels_distance_to_center = 1.66
+        back_wheels_distance_to_center = -1.46
+        front_wheels_distance_to_center_laterally = 0.717
+        back_wheels_distance_to_center_laterally = 0.717
+        height_of_front_wheels = 0
+        height_back_wheels = 0
+
+        wheel_offsets = [
+            [
+                front_wheels_distance_to_center,
+                front_wheels_distance_to_center_laterally,
+                height_of_front_wheels,
+            ],  # Front-right
+            [
+                front_wheels_distance_to_center,
+                -front_wheels_distance_to_center_laterally,
+                height_of_front_wheels,
+            ],  # Front-left
+            [
+                back_wheels_distance_to_center,
+                back_wheels_distance_to_center_laterally,
+                height_back_wheels,
+            ],  # Rear-right
+            [
+                back_wheels_distance_to_center,
+                -back_wheels_distance_to_center_laterally,
+                height_back_wheels,
+            ],  # Rear-left
+        ]
+
+        wheel_orientation = p.getQuaternionFromEuler([math.pi / 2, 0, 0])
+
+        link_joint_axes = [
+            [0, 1, 0],
+            [0, 1, 0],
+            [0, 0, 0],
+            [0, 0, 0],
+        ]
+
+        link_masses = [0.5] * 4
+        link_collision_indices = [wheel_collision] * 4
+        link_visual_indices = [wheel_visual] * 4
+        link_positions = [offset[:] for offset in wheel_offsets]
+        link_orientations = [wheel_orientation] * 4
+        link_inertial_positions = [[0, 0, 0] for _ in range(4)]
+        link_inertial_orientations = [wheel_orientation] * 4
+        link_parent_indices = [0, 0, 0, 0]
+        link_joint_types = [
+            p.JOINT_REVOLUTE,
+            p.JOINT_REVOLUTE,
+            p.JOINT_FIXED,
+            p.JOINT_FIXED,
+        ]
+
+        return (
+            link_masses,
+            link_collision_indices,
+            link_visual_indices,
+            link_positions,
+            link_orientations,
+            link_inertial_positions,
+            link_inertial_orientations,
+            link_parent_indices,
+            link_joint_types,
+            link_joint_axes,
+        )
+
+    def _add_body_blocks(
+        self,
+        block_specs,
+        base_delta_x,
+        base_delta_z,
+        identity_orientation,
+        link_masses,
+        link_collision_indices,
+        link_visual_indices,
+        link_positions,
+        link_orientations,
+        link_inertial_positions,
+        link_inertial_orientations,
+        link_parent_indices,
+        link_joint_types,
+        link_joint_axes,
+    ):
+        for block in block_specs:
+            half_extents = [block[2] / 2.0, block[3] / 2.0, block[4] / 2.0]
+            block_collision = p.createCollisionShape(
+                p.GEOM_BOX, halfExtents=half_extents
+            )
+
+            block_visual = p.createVisualShape(
+                p.GEOM_BOX,
+                halfExtents=half_extents,
+                rgbaColor=list(block[-1]) + [1.0],
+            )
+
+            link_masses.append(0.1)
+            link_collision_indices.append(block_collision)
+            link_visual_indices.append(block_visual)
+            link_positions.append(
+                [block[0] - base_delta_x, 0.0, block[1] - base_delta_z]
+            )
+            link_orientations.append(identity_orientation)
+            link_inertial_positions.append([0, 0, 0])
+            link_inertial_orientations.append(identity_orientation)
+            link_parent_indices.append(0)
+            link_joint_types.append(p.JOINT_FIXED)
+            link_joint_axes.append([0, 0, 0])
 
     def update_vehicle_state(self, turn, brake, throttle, dt):
         max_speed = 10.0
