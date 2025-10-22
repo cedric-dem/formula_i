@@ -1,11 +1,18 @@
+################################## Global config
+
 CAMERA_TYPE = "FOLLOW_CAR"  # Options: "FIXED", "FOLLOW_CAR", "ROTATE_AROUND_CAR"
 MOVE_DECISION = "KEYBOARD"  # Options: "DEFAULT", "AI", "KEYBOARD"
 SIMPLIFIED_MODEL = False
 MAX_STEERING_ANGLE = 10.0
 DISPLAY_DATA = "ON_TERMINAL" # Options : "ON_GUI", "ON_TERMINAL", "NO"
-REFRESH_EVERY_FRAME = 100
+REFRESH_EVERY_FRAME = 240
 
-###################################
+################################### Car Behaviour
+
+MAX_SPEED_KMH = 370
+MAX_SPEED_MPS = MAX_SPEED_KMH / 3.6
+
+################################### Look
 
 SKY_COLOR = (0.615,0.850,0.956)
 GROUND_COLOR = (0.443, 0.603, 0.435)
@@ -25,8 +32,6 @@ CAR_BODY_BLOCKS = [
     (0, 0.3, 0.3, 0.2, 0.4,HELMET_COLOR),  # helmet
 ]
 
-###################################
+################################### initialize
 
 camera_rotation_angle = 0.0
-
-###################################

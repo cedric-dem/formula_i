@@ -6,7 +6,7 @@ import pybullet as p
 class Car:
     def __init__(self):
         self.body_id = self._create_car()
-        self.current_speed = 0.0
+        self.current_speed_ms = 0.0
         _, orientation = p.getBasePositionAndOrientation(self.body_id)
         _, _, self.current_angle = p.getEulerFromQuaternion(orientation)
         self.current_steering = 0.0
@@ -249,8 +249,10 @@ class Car:
             link_joint_axes.append([0, 0, 0])
 
     def update_vehicle_state(self, turn, brake, throttle, dt):
-        max_speed = 10.0
-        acceleration_rate = 5.0
+
+        #acceleration_rate = f_prime(self.current_speed_ms)
+        acceleration_rate = 0.3
+
         brake_deceleration = 10.0
         turn_speed = 1.0
 
@@ -258,18 +260,15 @@ class Car:
         brake = clamp(float(brake), 0.0, 1.0)
         throttle = clamp(float(throttle), 0.0, 1.0)
 
-        target_speed = throttle * max_speed
-        self.current_speed += (target_speed - self.current_speed) * acceleration_rate * dt
-        self.current_speed = max(
-            self.current_speed - brake * brake_deceleration * dt, 0.0
-        )
+        target_speed_mps = throttle * MAX_SPEED_MPS
+        speed_delta_mps = (target_speed_mps - self.current_speed_ms) * acceleration_rate * dt
+        self.current_speed_ms += speed_delta_mps
+        self.current_speed_ms = max(self.current_speed_ms - brake * brake_deceleration * dt, 0.0)
 
         self.current_angle += turn * turn_speed * dt
 
         car_position, physics_orientation = p.getBasePositionAndOrientation(self.body_id)
-        current_linear_velocity, current_angular_velocity = p.getBaseVelocity(
-            self.body_id
-        )
+        current_linear_velocity, current_angular_velocity = p.getBaseVelocity(self.body_id)
 
         roll, pitch, _ = p.getEulerFromQuaternion(physics_orientation)
         car_orientation = p.getQuaternionFromEuler([roll, pitch, self.current_angle])
@@ -281,8 +280,8 @@ class Car:
             0.0,
         ]
         linear_velocity = [
-            forward_vector[0] * self.current_speed,
-            forward_vector[1] * self.current_speed,
+            forward_vector[0] * self.current_speed_ms,
+            forward_vector[1] * self.current_speed_ms,
             current_linear_velocity[2],
         ]
         p.resetBaseVelocity(
@@ -293,4 +292,5 @@ class Car:
 
         update_camera(car_position, self.current_angle, dt)
 
-        return self.current_angle, self.current_speed
+        return self.current_angle, self.current_speed_ms
+

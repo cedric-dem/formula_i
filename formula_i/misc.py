@@ -73,7 +73,7 @@ def initialize_simulation():
 def setup_environment():
     p.setGravity(0, 0, -9.81)
 
-    ground_half_extents = [500.0, 500.0, 0.1]
+    ground_half_extents = [1000.0, 1000.0, 0.1]
     ground_collision = p.createCollisionShape(
         p.GEOM_BOX, halfExtents=ground_half_extents
     )
@@ -199,11 +199,13 @@ def get_input_data(car, current_ticks):
     current_angle_x, current_angle_y, current_angle_z = p.getEulerFromQuaternion(
         car_orientation
     )
-    overall_speed = math.sqrt(
+    overall_speed_ms = math.sqrt(
         linear_velocity[0] ** 2
         + linear_velocity[1] ** 2
         + linear_velocity[2] ** 2
     )
+
+    overall_speed_kmh = overall_speed_ms * 3.6
 
     last_position = getattr(car, "_last_display_position", None)
 
@@ -227,7 +229,7 @@ def get_input_data(car, current_ticks):
         "angle_z": round(float(current_angle_z),2),
 
         "distance_traveled": round(float(car.total_distance_traveled),2),
-        "overall_speed": round(float(overall_speed),2),
+        "overall_speed_kmh": round(float(overall_speed_kmh),2),
     }
     return values
 
