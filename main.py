@@ -27,6 +27,76 @@ camera_rotation_angle = 0.0
 
 ###################################
 
+class Car:
+    def __init__(self, body_id):
+        self.body_id = body_id
+        self.current_speed = 0.0
+        _, orientation = p.getBasePositionAndOrientation(body_id)
+        _, _, self.current_angle = p.getEulerFromQuaternion(orientation)
+        self.current_steering = 0.0
+
+    def apply_steering(self, steering_input):
+        steering_angle = clamp(float(steering_input), -1.0, 1.0) * MAX_STEERING_ANGLE
+        self.current_steering = steering_angle
+
+        for joint_index in (0, 1):
+            p.resetJointState(self.body_id, joint_index, steering_angle)
+            p.setJointMotorControl2(
+                self.body_id,
+                joint_index,
+                controlMode=p.POSITION_CONTROL,
+                targetPosition=steering_angle,
+                force=100,
+            )
+
+    def update_vehicle_state(self, turn, brake, throttle, dt):
+        max_speed = 10.0
+        acceleration_rate = 5.0
+        brake_deceleration = 10.0
+        turn_speed = 1.0
+
+        turn = clamp(float(turn), -1.0, 1.0)
+        brake = clamp(float(brake), 0.0, 1.0)
+        throttle = clamp(float(throttle), 0.0, 1.0)
+
+        target_speed = throttle * max_speed
+        self.current_speed += (target_speed - self.current_speed) * acceleration_rate * dt
+        self.current_speed = max(
+            self.current_speed - brake * brake_deceleration * dt, 0.0
+        )
+
+        self.current_angle += turn * turn_speed * dt
+
+        car_position, physics_orientation = p.getBasePositionAndOrientation(self.body_id)
+        current_linear_velocity, current_angular_velocity = p.getBaseVelocity(
+            self.body_id
+        )
+
+        roll, pitch, _ = p.getEulerFromQuaternion(physics_orientation)
+        car_orientation = p.getQuaternionFromEuler([roll, pitch, self.current_angle])
+        p.resetBasePositionAndOrientation(self.body_id, car_position, car_orientation)
+
+        forward_vector = [
+            math.cos(self.current_angle),
+            math.sin(self.current_angle),
+            0.0,
+        ]
+        linear_velocity = [
+            forward_vector[0] * self.current_speed,
+            forward_vector[1] * self.current_speed,
+            current_linear_velocity[2],
+        ]
+        p.resetBaseVelocity(
+            self.body_id,
+            linearVelocity=linear_velocity,
+            angularVelocity=current_angular_velocity,
+        )
+
+        update_camera(car_position, self.current_angle, dt)
+
+        return self.current_angle, self.current_speed
+
+
 def get_next_move():
     """Return the steering, brake and throttle values for the next step."""
     if MOVE_DECISION == "DEFAULT":
@@ -284,25 +354,7 @@ def create_car():
             force=0,
         )
 
-    return car_body
-
-
-def apply_steering_to_front_wheels(car_body, steering_input):
-    steering_angle = clamp(float(steering_input), -1.0, 1.0) * MAX_STEERING_ANGLE
-
-    for joint_index in(0,1):
-        # Manually set the joint state so the wheel visuals immediately reflect the
-        # current steering command. Using resetJointState ensures the links rotate
-        # with the base orientation updates that are applied elsewhere in the
-        # simulation loop.
-        p.resetJointState(car_body, joint_index, steering_angle)
-        p.setJointMotorControl2(
-            car_body,
-            joint_index,
-            controlMode=p.POSITION_CONTROL,
-            targetPosition=steering_angle,
-            force=100,
-        )
+    return Car(car_body)
 
 
 def update_camera(car_position, yaw, dt):
@@ -341,58 +393,13 @@ def update_camera(car_position, yaw, dt):
         cameraPitch=camera_pitch,
         cameraTargetPosition=car_position,
     )
-def update_vehicle_state(car_body, yaw, current_speed, turn, brake, throttle, dt):
-    max_speed = 10.0
-    acceleration_rate = 5.0
-    brake_deceleration = 10.0
-    turn_speed = 1.0
-
-    turn = clamp(float(turn), -1.0, 1.0)
-    brake = clamp(float(brake), 0.0, 1.0)
-    throttle = clamp(float(throttle), 0.0, 1.0)
-
-    target_speed = throttle * max_speed
-    current_speed += (target_speed - current_speed) * acceleration_rate * dt
-    current_speed = max(current_speed - brake * brake_deceleration * dt, 0.0)
-
-    yaw += turn * turn_speed * dt
-
-    car_position, physics_orientation = p.getBasePositionAndOrientation(car_body)
-    current_linear_velocity, current_angular_velocity = p.getBaseVelocity(car_body)
-
-    roll, pitch, _ = p.getEulerFromQuaternion(physics_orientation)
-    car_orientation = p.getQuaternionFromEuler([roll, pitch, yaw])
-    p.resetBasePositionAndOrientation(car_body, car_position, car_orientation)
-
-    forward_vector = [math.cos(yaw), math.sin(yaw), 0.0]
-    linear_velocity = [
-        forward_vector[0] * current_speed,
-        forward_vector[1] * current_speed,
-        current_linear_velocity[2],
-    ]
-    p.resetBaseVelocity(
-        car_body,
-        linearVelocity=linear_velocity,
-        angularVelocity=current_angular_velocity,
-    )
-
-    update_camera(car_position, yaw, dt)
-
-    return yaw, current_speed
-
-
-def run_simulation(car_body):
+def run_simulation(car):
     dt = 1 / 240
-    _, car_orientation = p.getBasePositionAndOrientation(car_body)
-    _, _, yaw = p.getEulerFromQuaternion(car_orientation)
-    current_speed = 0.0
 
     while True:
         turn, brake, throttle = get_next_move()
-        apply_steering_to_front_wheels(car_body, turn)
-        yaw, current_speed = update_vehicle_state(
-            car_body, yaw, current_speed, turn, brake, throttle, dt
-        )
+        car.apply_steering(turn)
+        car.update_vehicle_state(turn, brake, throttle, dt)
 
         p.stepSimulation()
         time.sleep(dt)
@@ -401,11 +408,11 @@ def run_simulation(car_body):
 def main():
     initialize_simulation()
     setup_environment()
-    car_body = create_car()
-    apply_steering_to_front_wheels(car_body, 0.0)
+    car = create_car()
+    car.apply_steering(0.0)
 
     try:
-        run_simulation(car_body)
+        run_simulation(car)
     finally:
         p.disconnect()
 
