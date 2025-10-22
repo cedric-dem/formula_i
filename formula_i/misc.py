@@ -267,7 +267,7 @@ def run_simulation(car):
         current_ticks += 1
         turn, brake, throttle = get_next_move()
         car.apply_steering(turn)
-        car.update_vehicle_state(turn, brake, throttle, dt)
+        car.update_vehicle_state(turn, brake, throttle, dt, current_ticks)
 
         if DISPLAY_DATA != "NO":
             if current_ticks % REFRESH_EVERY_FRAME == 0:

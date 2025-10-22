@@ -11,6 +11,10 @@ class Car:
         _, _, self.current_angle = p.getEulerFromQuaternion(orientation)
         self.current_steering = 0.0
         self.total_distance_traveled = 0.0
+        self.sensor_max_distance = 20.0
+        self._identity_orientation = p.getQuaternionFromEuler([0, 0, 0])
+        self.sensors = self._initialize_sensors()
+        self.sensor_distance = self.sensor_max_distance
 
     def apply_steering(self, steering_input):
         MAX_STEERING_ANGLE = 10.0 #only for visual
@@ -104,6 +108,44 @@ class Car:
             )
 
         return car_body
+
+    def _create_sensor_marker(self):
+        marker_half_extents = [0.2, 0.2, 0.2]
+        marker_visual = p.createVisualShape(
+            p.GEOM_BOX, halfExtents=marker_half_extents, rgbaColor=[0.0, 1.0, 0.0, 1.0]
+        )
+
+        marker_id = p.createMultiBody(
+            baseMass=0,
+            baseCollisionShapeIndex=-1,
+            baseVisualShapeIndex=marker_visual,
+            basePosition=[0.0, 0.0, -10.0],
+            baseOrientation=self._identity_orientation,
+        )
+
+        return marker_id
+
+    def _initialize_sensors(self):
+        sensor_definitions = [
+            ("front", 0.0),
+            ("front_left_20", 20.0),
+            ("front_left_40", 40.0),
+            ("front_right_20", -20.0),
+            ("front_right_40", -40.0),
+        ]
+
+        sensors = []
+        for name, angle_deg in sensor_definitions:
+            sensors.append(
+                {
+                    "name": name,
+                    "angle_offset": math.radians(angle_deg),
+                    "distance": self.sensor_max_distance,
+                    "marker_id": self._create_sensor_marker(),
+                }
+            )
+
+        return sensors
 
     def _create_body(self, base_block):
         base_delta_x, base_delta_z = base_block[:2]
@@ -249,7 +291,7 @@ class Car:
             link_joint_types.append(p.JOINT_FIXED)
             link_joint_axes.append([0, 0, 0])
 
-    def update_vehicle_state(self, turn, brake, throttle, dt):
+    def update_vehicle_state(self, turn, brake, throttle, dt, current_timestamp):
 
         #acceleration_rate = f_prime(self.current_speed_ms)
         acceleration_rate = 0.3
@@ -281,6 +323,10 @@ class Car:
             math.sin(self.current_angle),
             0.0,
         ]
+
+        if current_timestamp % REFRESH_SENSORS_EVERY_FRAME == 0:
+            self._update_sensors(car_position, forward_vector)
+
         linear_velocity = [
             forward_vector[0] * self.current_speed_ms,
             forward_vector[1] * self.current_speed_ms,
@@ -296,3 +342,76 @@ class Car:
 
         return self.current_angle, self.current_speed_ms
 
+    def _update_sensors(self, car_position, forward_vector):
+        sensor_height_offset = 0.5
+        sensor_front_offset = 2.5
+
+        sensor_origin = [
+            car_position[0] + forward_vector[0] * sensor_front_offset,
+            car_position[1] + forward_vector[1] * sensor_front_offset,
+            car_position[2] + sensor_height_offset,
+        ]
+
+        front_distance = self.sensor_max_distance
+
+        for sensor in self.sensors:
+            direction = [
+                math.cos(self.current_angle + sensor["angle_offset"]),
+                math.sin(self.current_angle + sensor["angle_offset"]),
+                0.0,
+            ]
+
+            detected_distance, detected_point = self._cast_sensor(sensor_origin, direction)
+            sensor["distance"] = detected_distance
+
+            if sensor["name"] == "front":
+                front_distance = detected_distance
+
+            if sensor["marker_id"] is not None:
+                """
+                # TODO
+                marker_color = [1.0, 0.0, 0.0, 1.0]
+                print(sensor["distance"])
+                if (sensor["distance"]<=10):
+                    marker_color = [0.0, 0.0, 1.0, 1.0]
+                #p.changeVisualShape(sensor["marker_id"], -1, rgbaColor = marker_color)
+                #p.setDebugObjectColor(sensor["marker_id"], -1, marker_color)
+                """
+
+                p.resetBasePositionAndOrientation(
+                    sensor["marker_id"],
+                    detected_point,
+                    self._identity_orientation
+                )
+
+        self.sensor_distance = front_distance
+
+    def _cast_sensor(self, sensor_origin, direction):
+        detected_distance = self.sensor_max_distance
+        detected_point = None
+
+        for distance in range(1, int(self.sensor_max_distance) + 1):
+            ray_end = [
+                sensor_origin[0] + direction[0] * distance,
+                sensor_origin[1] + direction[1] * distance,
+                sensor_origin[2],
+            ]
+
+            ray_result = p.rayTest(sensor_origin, ray_end)[0]
+            body_id, _, hit_fraction, hit_position, _ = ray_result
+
+            if body_id == -1 or body_id == self.body_id:
+                continue
+
+            detected_distance = hit_fraction * distance
+            detected_point = hit_position
+            break
+
+        if detected_point is None:
+            detected_point = [
+                sensor_origin[0] + direction[0] * detected_distance,
+                sensor_origin[1] + direction[1] * detected_distance,
+                sensor_origin[2],
+            ]
+
+        return detected_distance, detected_point

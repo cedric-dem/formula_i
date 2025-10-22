@@ -6,6 +6,7 @@ SIMPLIFIED_MODEL = False
 DISPLAY_DATA = "ON_TERMINAL" # Options : "ON_GUI", "ON_TERMINAL", "NO"
 REFRESH_EVERY_FRAME = 240
 ADD_DEBUG_CUBES = False
+REFRESH_SENSORS_EVERY_FRAME = 3
 
 ################################### Car Behaviour
 
