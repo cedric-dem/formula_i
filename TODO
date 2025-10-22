@@ -11,10 +11,11 @@ done :
 	wheels turn when input says so
     setting simple car
 	model car
+	add infos on the screen or on terminal about currently followed car
 
 todo:
+    implement display data on gui
 	model track
-	add infos on the screen or on terminal about currently followed car
 	add sensors +  display of sensors + display on screen
 	display minimap in corner ? and position of cars
 	add trace + display of trace
