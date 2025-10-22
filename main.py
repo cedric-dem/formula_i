@@ -8,6 +8,10 @@ CAMERA_TYPE = "FOLLOW_CAR"  # Options: "FIXED", "FOLLOW_CAR", "ROTATE_AROUND_CAR
 MOVE_DECISION = "KEYBOARD"  # Options: "DEFAULT", "AI", "KEYBOARD"
 SIMPLIFIED_MODEL = False
 MAX_STEERING_ANGLE = math.radians(10.0)
+DISPLAY_DATA = "ON_TERMINAL" # Options : "ON_GUI", "ON_TERMINAL", "NO"
+REFRESH_EVERY_FRAME = 100
+
+###################################
 
 BASE_COLOR = (0.9, 0.1, 0.1)
 HELMET_COLOR = (0.1, 0.1, 0.1)
@@ -35,6 +39,7 @@ class Car:
         _, orientation = p.getBasePositionAndOrientation(self.body_id)
         _, _, self.current_angle = p.getEulerFromQuaternion(orientation)
         self.current_steering = 0.0
+        self.total_distance_traveled = 0.0
 
     def apply_steering(self, steering_input):
         steering_angle = clamp(float(steering_input), -1.0, 1.0) * MAX_STEERING_ANGLE
@@ -485,13 +490,85 @@ def update_camera(car_position, yaw, dt):
         cameraPitch=camera_pitch,
         cameraTargetPosition=car_position,
     )
+
+
+
+def display_data(values):
+    if DISPLAY_DATA == "ON_TERMINAL":
+        display_on_terminal(values)
+    elif DISPLAY_DATA == "ON_GUI":
+        display_on_gui(values)
+
+
+def display_on_terminal(values_dict):
+    for value in values_dict:
+        print(value, values_dict[value], end=", ")
+    print()
+
+
+def display_on_gui(values_dict):
+    # TODO
+    pass
+
+def get_input_data(car, current_ticks):
+    car_position, car_orientation = p.getBasePositionAndOrientation(car.body_id)
+    linear_velocity, _ = p.getBaseVelocity(car.body_id)
+    current_angle_x, current_angle_y, current_angle_z = p.getEulerFromQuaternion(
+        car_orientation
+    )
+    overall_speed = math.sqrt(
+        linear_velocity[0] ** 2
+        + linear_velocity[1] ** 2
+        + linear_velocity[2] ** 2
+    )
+
+    last_position = getattr(car, "_last_display_position", None)
+
+    if last_position is not None:
+        distance_increment = math.sqrt((car_position[0] - last_position[0]) ** 2+ (car_position[1] - last_position[1]) ** 2+ (car_position[2] - last_position[2]) ** 2        )
+        car.total_distance_traveled += distance_increment
+
+    car._last_display_position = car_position
+
+    values = {
+        "ticks": current_ticks,
+
+        "position_x": round(float(car_position[0]),2),
+        "position_y": round(float(car_position[1]),2),
+        "position_z": round(float(car_position[2]),2),
+        "speed_x": round(float(linear_velocity[0]),2),
+        "speed_y": round(float(linear_velocity[1]),2),
+        "speed_z": round(float(linear_velocity[2]),2),
+        "angle_x": round(float(current_angle_x),2),
+        "angle_y": round(float(current_angle_y),2),
+        "angle_z": round(float(current_angle_z),2),
+
+        "distance_traveled": round(float(car.total_distance_traveled),2),
+        "overall_speed": round(float(overall_speed),2),
+    }
+    return values
+
+def get_str_padded_data(input_data):
+    result = {}
+    for key in input_data:
+        tmp = str(input_data[key])
+        result[key] = ((7-len(tmp)) * " " )+ tmp
+    return result
+
 def run_simulation(car):
     dt = 1 / 240
 
+    current_ticks = 0
     while True:
+        current_ticks += 1
         turn, brake, throttle = get_next_move()
         car.apply_steering(turn)
         car.update_vehicle_state(turn, brake, throttle, dt)
+
+        if DISPLAY_DATA != "NO":
+            if current_ticks % REFRESH_EVERY_FRAME == 0:
+                input_data = get_input_data(car, current_ticks) #probably will have to move that to be used also in the input of the nn
+                display_data(get_str_padded_data(input_data))
 
         p.stepSimulation()
         time.sleep(dt)

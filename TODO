@@ -15,7 +15,8 @@ done :
 todo:
 	model track
 	add infos on the screen or on terminal about currently followed car
-	add sensors +  display of sensors
+	add sensors +  display of sensors + display on screen
+	display minimap in corner ? and position of cars
 	add trace + display of trace
 	realistic turning depending on the speed
 	realistic speed acceleration rate (even mimic real gearbox ?)
