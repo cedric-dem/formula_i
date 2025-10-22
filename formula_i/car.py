@@ -141,7 +141,7 @@ class Car:
                     "name": name,
                     "angle_offset": math.radians(angle_deg),
                     "distance": self.sensor_max_distance,
-                    "marker_id": self._create_sensor_marker(),
+                    "marker_id": self._create_sensor_marker() if DISPLAY_SENSORS else None,
                 }
             )
 
@@ -296,7 +296,7 @@ class Car:
         #acceleration_rate = f_prime(self.current_speed_ms)
         acceleration_rate = 0.3
 
-        brake_deceleration = 10.0
+        brake_deceleration = 50.0
         turn_speed = 1.0
 
         turn = clamp(float(turn), -1.0, 1.0)
@@ -367,7 +367,7 @@ class Car:
             if sensor["name"] == "front":
                 front_distance = detected_distance
 
-            if sensor["marker_id"] is not None:
+            if DISPLAY_SENSORS and sensor["marker_id"] is not None:
                 """
                 # TODO
                 marker_color = [1.0, 0.0, 0.0, 1.0]
