@@ -177,7 +177,7 @@ def create_car():
         p.GEOM_CYLINDER, radius=wheel_radius, height=wheel_width
     )
     wheel_visual = p.createVisualShape(
-        p.GEOM_CYLINDER, radius=wheel_radius, length=wheel_width, rgbaColor=[0.1, 0.1, 0.1, 1]
+        p.GEOM_CYLINDER, radius=wheel_radius, length=wheel_width, rgbaColor=[0.2, 0.2, 0.2,1]
     )
 
     #center of f1 is center of all 4 wheels
