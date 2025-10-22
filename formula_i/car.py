@@ -13,6 +13,7 @@ class Car:
         self.total_distance_traveled = 0.0
 
     def apply_steering(self, steering_input):
+        MAX_STEERING_ANGLE = 10.0 #only for visual
         steering_angle = clamp(float(steering_input), -1.0, 1.0) * math.radians(MAX_STEERING_ANGLE)
         self.current_steering = steering_angle
 
@@ -265,7 +266,8 @@ class Car:
         self.current_speed_ms += speed_delta_mps
         self.current_speed_ms = max(self.current_speed_ms - brake * brake_deceleration * dt, 0.0)
 
-        self.current_angle += turn * turn_speed * dt
+        if self.current_speed_ms>0.01:
+            self.current_angle += turn * turn_speed * dt
 
         car_position, physics_orientation = p.getBasePositionAndOrientation(self.body_id)
         current_linear_velocity, current_angular_velocity = p.getBaseVelocity(self.body_id)

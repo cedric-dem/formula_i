@@ -1,5 +1,6 @@
 import math
 import time
+import random
 
 import pybullet as p
 
@@ -89,6 +90,24 @@ def setup_environment():
 
     for height, lateral_shift in ((6, 10), (12, 20), (18, 30)):
         create_ramp(height, lateral_shift)
+
+    if ADD_DEBUG_CUBES:
+        cube_half_extents = [1.0, 1.0, 1.0]
+        cube_collision = p.createCollisionShape(p.GEOM_BOX, halfExtents=cube_half_extents)
+        cube_visual = p.createVisualShape(
+            p.GEOM_BOX,
+            halfExtents=cube_half_extents,
+            rgbaColor=[1.0, 0.0, 0.0, 1.0],
+        )
+
+        for _ in range(10):
+            random_position = [random.uniform(-500.0, 500.0), random.uniform(-500.0, 500.0), 1.0]
+            p.createMultiBody(
+                baseMass=0,
+                baseCollisionShapeIndex=cube_collision,
+                baseVisualShapeIndex=cube_visual,
+                basePosition=random_position,
+            )
 
 
 def create_ramp(ramp_height, lateral_delta):
