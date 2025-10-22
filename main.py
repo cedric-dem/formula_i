@@ -13,11 +13,11 @@ REFRESH_EVERY_FRAME = 100
 
 ###################################
 
-SKY_COLOR = (0.1,0.1,0.9)
-GROUND_COLOR = (0.1, 0.9, 0.1)
-ROAD_COLOR = (0.1, 0.1, 0.1)
+SKY_COLOR = (0.615,0.850,0.956)
+GROUND_COLOR = (0.443, 0.603, 0.435)
+ROAD_COLOR = (0.737, 0.768, 0.713)
 
-CAR_COLOR = (0.9, 0.1, 0.1)
+CAR_COLOR = (0.847, 0.458, 0.396)
 HELMET_COLOR = (0.1, 0.1, 0.1)
 WHEELS_COLOR = (0.2, 0.2, 0.2)
 
