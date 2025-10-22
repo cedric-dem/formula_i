@@ -2,7 +2,7 @@ from pythreejs import *
 from IPython.display import display
 import trimesh
 
-mesh = trimesh.load('model.glb')
+mesh = trimesh.load('f1_tracks/spa/maps3d-2025-10-22_22-46-09.glb')
 geometry = BufferGeometry.from_trimesh(mesh)
 material = MeshStandardMaterial(color='white', metalness=0.3, roughness=0.7)
 mesh_view = Mesh(geometry=geometry, material=material)
