@@ -13,16 +13,22 @@ REFRESH_EVERY_FRAME = 100
 
 ###################################
 
-BASE_COLOR = (0.9, 0.1, 0.1)
+SKY_COLOR = (0.1,0.1,0.9)
+GROUND_COLOR = (0.1, 0.9, 0.1)
+ROAD_COLOR = (0.1, 0.1, 0.1)
+
+CAR_COLOR = (0.9, 0.1, 0.1)
 HELMET_COLOR = (0.1, 0.1, 0.1)
+WHEELS_COLOR = (0.2, 0.2, 0.2)
+
 CAR_BODY_BLOCKS = [
     # (delta_x, delta_z, size_x, size_y, size_z, color_rgb)
-    (0,0, 1.7, 1.5, 0.5, BASE_COLOR),  # Main chassis
-    (0.5, 0.0, 3.8, 0.4, 0.4,BASE_COLOR),  # chassis lengthwise
-    (2.3, -0.24, 0.5, 1.4, 0.1,  BASE_COLOR),  # Front wing assembly
-    (-1.8, 0.24, 0.5, 1.0, 0.4, BASE_COLOR) ,  # Rear wing assembly
-    (-0.6, 0.3, 0.7, 0.2, 0.4,BASE_COLOR),  # Center cell upper
-    (0, 0.3, 0.3, 0.2, 0.4,HELMET_COLOR),  # Center cell upper
+    (0, 0, 1.7, 1.5, 0.5, CAR_COLOR),  # Main chassis
+    (0.5, 0.0, 3.8, 0.4, 0.4, CAR_COLOR),  # chassis lengthwise
+    (2.3, -0.24, 0.5, 1.4, 0.1, CAR_COLOR),  # Front wing assembly
+    (-1.8, 0.24, 0.5, 1.0, 0.4, CAR_COLOR) ,  # Rear wing assembly
+    (-0.6, 0.3, 0.7, 0.2, 0.4, CAR_COLOR),  # Center cell upper
+    (0, 0.3, 0.3, 0.2, 0.4,HELMET_COLOR),  # helmet
 ]
 
 ###################################
@@ -162,7 +168,7 @@ class Car:
             p.GEOM_CYLINDER,
             radius=wheel_radius,
             length=wheel_width,
-            rgbaColor=[0.2, 0.2, 0.2, 1],
+            rgbaColor=[WHEELS_COLOR[0], WHEELS_COLOR[1], WHEELS_COLOR[2], 1],
         )
 
         return wheel_collision, wheel_visual
@@ -371,7 +377,7 @@ def clamp(value, minimum, maximum):
 
 
 def initialize_simulation():
-    p.connect(p.GUI, options='--background_color_red=0.0 --background_color_green=0.0 --background_color_blue=1.0')
+    p.connect(p.GUI, options='--background_color_red='+str(SKY_COLOR[0])+' --background_color_green='+str(SKY_COLOR[1])+' --background_color_blue='+str(SKY_COLOR[2]))
     p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
     p.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, 0)
     p.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, 0)
@@ -395,7 +401,7 @@ def setup_environment():
         p.GEOM_BOX, halfExtents=ground_half_extents
     )
     ground_visual = p.createVisualShape(
-        p.GEOM_BOX, halfExtents=ground_half_extents, rgbaColor=[0.1, 0.9, 0.1, 1]
+        p.GEOM_BOX, halfExtents=ground_half_extents, rgbaColor=[GROUND_COLOR[0], GROUND_COLOR[1], GROUND_COLOR[2], 1]
     )
     p.createMultiBody(
         baseMass=0,
@@ -439,7 +445,7 @@ def create_ramp(ramp_height, lateral_delta):
         p.GEOM_BOX, halfExtents=ramp_half_extents
     )
     ramp_visual = p.createVisualShape(
-        p.GEOM_BOX, halfExtents=ramp_half_extents, rgbaColor=[0.5, 0.5, 0.5, 1]
+        p.GEOM_BOX, halfExtents=ramp_half_extents, rgbaColor=[ROAD_COLOR[0], ROAD_COLOR[1], ROAD_COLOR[2], 1]
     )
 
     ramp_center_y = lateral_delta
