@@ -14,9 +14,9 @@ HELMET_COLOR = (0.1, 0.1, 0.1)
 CAR_BODY_BLOCKS = [
     # (delta_x, delta_z, size_x, size_y, size_z, color_rgb)
     (0,0, 1.7, 1.5, 0.5, BASE_COLOR),  # Main chassis
-    (0.4, 0.0, 3.7, 0.4, 0.4,BASE_COLOR),  # chassis lengthwise
-    (2.4, -0.24, 0.5, 1.4, 0.1,  BASE_COLOR),  # Front wing assembly
-    (-1.9, 0.24, 0.3, 1.0, 0.3, BASE_COLOR) ,  # Rear wing assembly
+    (0.5, 0.0, 3.8, 0.4, 0.4,BASE_COLOR),  # chassis lengthwise
+    (2.3, -0.24, 0.5, 1.4, 0.1,  BASE_COLOR),  # Front wing assembly
+    (-1.8, 0.24, 0.5, 1.0, 0.4, BASE_COLOR) ,  # Rear wing assembly
     (-0.6, 0.3, 0.7, 0.2, 0.4,BASE_COLOR),  # Center cell upper
     (0, 0.3, 0.3, 0.2, 0.4,HELMET_COLOR),  # Center cell upper
 ]
@@ -182,12 +182,14 @@ def create_car():
 
     #center of f1 is center of all 4 wheels
 
-    front_wheels_distance_to_center = 1.56
-    front_wheels_distance_to_center_laterally = 0.542
-    height_of_front_wheels = -0.2
-    back_wheels_distance_to_center = -1.56
-    back_wheels_distance_to_center_laterally = 0.542
-    height_back_wheels = -0.2
+    front_wheels_distance_to_center = 1.66
+    back_wheels_distance_to_center = -1.46
+
+    front_wheels_distance_to_center_laterally = 0.717
+    back_wheels_distance_to_center_laterally = 0.717
+
+    height_of_front_wheels = 0
+    height_back_wheels = 0
 
     wheel_offsets = [
         [front_wheels_distance_to_center, front_wheels_distance_to_center_laterally, height_of_front_wheels],  # Front-right
