@@ -385,12 +385,12 @@ def initialize_simulation():
 def setup_environment():
     p.setGravity(0, 0, -9.81)
 
-    ground_half_extents = [150.0, 150.0, 0.1]
+    ground_half_extents = [500.0, 500.0, 0.1]
     ground_collision = p.createCollisionShape(
         p.GEOM_BOX, halfExtents=ground_half_extents
     )
     ground_visual = p.createVisualShape(
-        p.GEOM_BOX, halfExtents=ground_half_extents, rgbaColor=[0.0, 1, 0.0, 1]
+        p.GEOM_BOX, halfExtents=ground_half_extents, rgbaColor=[0.1, 0.9, 0.1, 1]
     )
     p.createMultiBody(
         baseMass=0,
@@ -399,7 +399,7 @@ def setup_environment():
         basePosition=[0, 0, -ground_half_extents[2]],
     )
 
-    for height, lateral_shift in ((6, 0), (12, 10), (18, 20)):
+    for height, lateral_shift in ((6, 10), (12, 20), (18, 30)):
         create_ramp(height, lateral_shift)
 
 
