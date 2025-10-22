@@ -1,15 +1,110 @@
-from pythreejs import *
-from IPython.display import display
-import trimesh
+import sys
+from pathlib import Path
+import numpy as np
+import open3d as o3d
 
-mesh = trimesh.load('f1_tracks/spa/maps3d-2025-10-22_22-46-09.glb')
-geometry = BufferGeometry.from_trimesh(mesh)
-material = MeshStandardMaterial(color='white', metalness=0.3, roughness=0.7)
-mesh_view = Mesh(geometry=geometry, material=material)
+MODEL_PATH = Path("f1_tracks/glb_files/spa_francorchamps.glb")
 
-scene = Scene(children=[mesh_view, AmbientLight(intensity=0.8)])
-renderer = Renderer(camera=PerspectiveCamera(position=[3, 3, 3]),
-                    scene=scene, controls=[OrbitControls()],
-                    width=800, height=600)
-display(renderer)
+def set_background(win, rgba=(0, 0, 0, 1)):
+    col = np.array(rgba, dtype=np.float32)
+    if hasattr(win, "set_background_color"):
+        try:
+            win.set_background_color(col)
+            return
+        except Exception:
+            pass
+    if hasattr(win, "set_background"):
+        try:
+            # Some builds need (color, Image), others just (color)
+            try:
+                win.set_background(col, o3d.geometry.Image())
+            except TypeError:
+                win.set_background(col)
+            return
+        except Exception:
+            pass
+    # Give up quietly; it’s just cosmetic
 
+def set_toggle(win, names, value=True):
+    """
+    Try a bunch of toggle variants:
+    - method: show_foo(True)
+    - method: set_show_foo(True)
+    - property: show_foo = True
+    """
+    # 1) Try direct callable like win.show_foo(True)
+    for n in names:
+        attr = getattr(win, n, None)
+        if callable(attr):
+            try:
+                attr(value)
+                return True
+            except Exception:
+                pass
+    # 2) Try setter like win.set_show_foo(True)
+    for n in names:
+        setter = getattr(win, ("set_" + n), None)
+        if callable(setter):
+            try:
+                setter(value)
+                return True
+            except Exception:
+                pass
+    # 3) Try property assignment: win.show_foo = True
+    for n in names:
+        if hasattr(win, n):
+            try:
+                setattr(win, n, value)
+                return True
+            except Exception:
+                pass
+    return False
+
+def main():
+    if not MODEL_PATH.exists():
+        print(f"Error: file not found: {MODEL_PATH.resolve()}")
+        sys.exit(1)
+
+    model = o3d.io.read_triangle_model(str(MODEL_PATH))
+    if model is None:
+        print("Error: failed to load model (unsupported/corrupted GLB).")
+        sys.exit(1)
+
+    try:
+        app = o3d.visualization.gui.Application.instance
+        app.initialize()
+
+        win = o3d.visualization.O3DVisualizer(
+            title=f"GLB Viewer – {MODEL_PATH.name}",
+            width=1280,
+            height=800
+        )
+
+        # Background, skybox, axes, ground — all with compatibility shims
+        set_background(win, (0, 0, 0, 1))
+        set_toggle(win, ["show_skybox"])
+        set_toggle(win, ["show_axes"])
+        # Ground plane name varies across builds
+        set_toggle(win, ["show_ground", "show_ground_plane"])
+
+        # Add the model (textures/PBR auto-applied for GLB)
+        win.add_model("spa_v2", model)
+
+        # Frame camera
+        if hasattr(win, "reset_camera_to_default"):
+            win.reset_camera_to_default()
+
+        app.add_window(win)
+        app.run()
+
+    except Exception as e:
+        # Minimal fallback viewer (uses same GLTF/GLB loader and shows textures)
+        print(f"[Info] O3DVisualizer had issues ({e}). Falling back to simple viewer.")
+        try:
+            o3d.visualization.draw(model)
+        except Exception as e2:
+            print(f"Fallback viewer failed as well: {e2}")
+            sys.exit(1)
+
+if __name__ == "__main__":
+    main()

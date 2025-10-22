@@ -25,4 +25,5 @@ todo:
 	grip/drift behaviour
 	multiple track
 	multiple cars
+	input of the nn : sensors + incline of the road , and 10m front of the car, and 20m, etc + direction off the middle of the car now, in 10m and 20m etc
 	
