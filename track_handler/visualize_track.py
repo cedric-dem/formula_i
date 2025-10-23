@@ -15,7 +15,6 @@ def set_background(win, rgba=(0, 0, 0, 1)):
             pass
     if hasattr(win, "set_background"):
         try:
-            # Some builds need (color, Image), others just (color)
             try:
                 win.set_background(col, o3d.geometry.Image())
             except TypeError:
@@ -23,15 +22,9 @@ def set_background(win, rgba=(0, 0, 0, 1)):
             return
         except Exception:
             pass
-    # Give up quietly; it’s just cosmetic
 
 def set_toggle(win, names, value=True):
-    """
-    Try a bunch of toggle variants:
-    - method: show_foo(True)
-    - method: set_show_foo(True)
-    - property: show_foo = True
-    """
+
     # 1) Try direct callable like win.show_foo(True)
     for n in names:
         attr = getattr(win, n, None)
@@ -80,14 +73,12 @@ def main():
             height=800
         )
 
-        # Background, skybox, axes, ground — all with compatibility shims
         set_background(win, (0, 0, 0, 1))
         set_toggle(win, ["show_skybox"])
         set_toggle(win, ["show_axes"])
-        # Ground plane name varies across builds
+
         set_toggle(win, ["show_ground", "show_ground_plane"])
 
-        # Add the model (textures/PBR auto-applied for GLB)
         win.add_model("spa_v2", model)
 
         # Frame camera
@@ -98,7 +89,6 @@ def main():
         app.run()
 
     except Exception as e:
-        # Minimal fallback viewer (uses same GLTF/GLB loader and shows textures)
         print(f"[Info] O3DVisualizer had issues ({e}). Falling back to simple viewer.")
         try:
             o3d.visualization.draw(model)
