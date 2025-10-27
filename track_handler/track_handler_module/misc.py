@@ -305,8 +305,8 @@ def get_resized_model(model):
 	if current_range_x == 0 or current_range_z == 0:
 		raise ValueError("Invalid map dimensions: zero width or height detected.")
 
-	target_min = -2500
-	target_max = 2500
+	target_min = -HALF_SIZE
+	target_max = HALF_SIZE
 	target_span = target_max - target_min
 
 	scale_x = target_span / current_range_x
@@ -334,8 +334,7 @@ def display_result_in_3d_window(model, track_layout_markers):
 
 		win = o3d.visualization.O3DVisualizer(title = "view", width = 1280, height = 800)
 
-		rgba = (0, 0, 0, 1)
-		col = np.array(rgba, dtype = np.float32)
+		col = np.array((0, 0, 0, 1), dtype = np.float32)
 
 		if hasattr(win, "set_background"):
 			win.set_background(col, o3d.geometry.Image())
