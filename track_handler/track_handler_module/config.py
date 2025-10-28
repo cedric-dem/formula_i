@@ -5,12 +5,20 @@ gp_index = 8  # 13
 
 ################
 
-DISPLAY_RESULT = "IN_3D_WINDOW"  # options : "SUMMARIZE_IN_TERMINAL", "IN_3D_WINDOW"
+## global
 HALF_SIZE = 2500
-CUT_BFS = True  # will add random points if true, else will do exact breath first search
-STOP_EXPLORATION_EARLY = 1000  # stop loop after that many steps (or none to go until the end)
-SUBSET_TRAIL_SIZE = 450  # options : size or None
-SUBSET_TRIANGLES_SIZE = 1000  # options : int to retreive only that amount of triangles or None to go with full list of triangles
+
+## script 1
+CUT_BFS = False  # will add random points if true, else will do exact breath first search
+SUBSET_TRAIL_SIZE = None  # options : size or None
+STOP_EXPLORATION_LAYOUT_PATH_EARLY = 1000  # stop loop after that many steps (or none to go until the end)
+
+## script 2
+ADAPT_QUANTITY = 1000
+SUBSET_TRIANGLES_SIZE = 10000  # options : int to retreive only that amount of triangles or None to go with full list of triangles
+
+## script 3
+DISPLAY_RESULT = "IN_3D_WINDOW"  # options : "SUMMARIZE_IN_TERMINAL", "IN_3D_WINDOW"
 
 ################
 
@@ -29,5 +37,7 @@ path_str = "f1_tracks/" + model_type + "/" + gp_name + ".glb"
 
 # image_layout_path = "f1_tracks/img_layout/" + gp_name + ".jpg"
 image_layout_path = "f1_tracks/img_layout_resized/" + gp_name + ".jpg"
+
+FILENAME_TEMP_LAYOUT = "temp_layout.csv"
 
 ################
