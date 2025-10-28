@@ -9,12 +9,11 @@ gp_index = 8  # 13
 HALF_SIZE = 2500
 
 ## script 1
-SHOW_TRAIL_BFS_STATE_EVERY = 500
+SHOW_TRAIL_BFS_STATE_EVERY = 50
 STOP_EXPLORATION_LAYOUT_PATH_EARLY = 10000  # stop loop after that many steps (or none to go until the end)
 
 ## script 2
 ADAPT_QUANTITY_PER_BATCH = 1000
-SUBSET_TRIANGLES_SIZE = 10000  # options : int to retrieve only that amount of triangles or None to go with full list of triangles
 
 ## script 3
 

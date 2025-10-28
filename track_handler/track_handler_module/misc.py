@@ -76,20 +76,21 @@ def create_markers_list():
 	return resulting_layout
 
 def adapt_markers_to_model(model, FILENAME_TEMP_LAYOUT):
+
 	triangles_set = get_list_of_triangles(model)
-	if SUBSET_TRIANGLES_SIZE == None:
-		print("===> triangles qty", len(triangles_set))
-	else:
-		print("===> triangles qty", len(triangles_set), "but will reduce to ", SUBSET_TRIANGLES_SIZE)
-		triangles_set = triangles_set[:SUBSET_TRIANGLES_SIZE]
+	print("===> triangles qty", len(triangles_set))
 
 	current_layout_markers_adapted = read_csv_file(FILENAME_TEMP_LAYOUT)
+	print('==> finish read')
 
 	continue_exploration = True
 	current_loop = 0
 	total = len(current_layout_markers_adapted)
+	remaining = count_remaining(current_layout_markers_adapted)
 
 	while continue_exploration:
+		print(">>>> current loop this execution : ", current_loop, " total quantity :", total, " remaining", remaining, " continue ", continue_exploration)
+
 		# small step progress in adapting layout
 		augment_layout_markers_using_triangles_list(current_layout_markers_adapted, triangles_set, ADAPT_QUANTITY_PER_BATCH)
 
@@ -102,8 +103,6 @@ def adapt_markers_to_model(model, FILENAME_TEMP_LAYOUT):
 		remaining = count_remaining(current_layout_markers_adapted)
 
 		continue_exploration = remaining > 0
-
-		print(">>>> current loop this execution : ", current_loop, " total quantity :", total, " remaining", remaining, " continue ", continue_exploration)
 
 	print('===> Finished exploration')
 
@@ -202,11 +201,13 @@ def augment_layout_markers_using_triangles_list(current_adapted_track_layout, tr
 	current_index = 0
 	current_found = 0
 	continue_exploration = True
+
+	t0 = time.time()
 	while continue_exploration:
 
 		if isinstance(current_adapted_track_layout[current_index][2], str) and current_adapted_track_layout[current_index][2].startswith("?"):
 			# adapt that one
-			height = adapt_one_marker_to_model(current_adapted_track_layout[current_index], triangles_set)
+			height = get_adapted_height_of_marker(current_adapted_track_layout[current_index], triangles_set)
 			current_adapted_track_layout[current_index][2] = height
 			current_found += 1
 
@@ -214,23 +215,56 @@ def augment_layout_markers_using_triangles_list(current_adapted_track_layout, tr
 
 		continue_exploration = (current_found < quantity) and not (current_index >= len(current_adapted_track_layout))
 
-def adapt_one_marker_to_model(marker_to_adapt, triangles_set):
-	# to improve precision : could find intersection in the triangle but for now closes t point will do the job
+	if current_found % quantity == 0: #if finished by reaching end
+		t1 = time.time()
+		time_last_per_elem = round((t1 - t0) / quantity, 2)
+		print('===> Current index :', current_index, ". time taken for those last ", quantity, ": ", t1 - t0, " so average per elem ", time_last_per_elem)
 
-	# get_index_of_triangle_intersecting_with_cube_on_y_axis
-	best_distance = None
-	best_point = None
 
-	for current_triangle_index in range(len(triangles_set)):
+def get_adapted_height_of_marker(marker_to_adapt, triangles_set):
+	intersecting_triangle_index = get_index_of_intersecting_triangle(marker_to_adapt, triangles_set)
+
+	found_triangle = triangles_set[intersecting_triangle_index]
+
+	new_height = get_height_of_intersection_between_given_two_dimensional_point_and_triangle([marker_to_adapt[1], marker_to_adapt[3]], found_triangle)
+
+	return round(new_height, 3)
+
+def get_height_of_intersection_between_given_two_dimensional_point_and_triangle(marker_to_adapt, found_triangle):
+	# TODO to be exact, position of point exactly on the triangle
+	# for now faster option, just take the height of the center of the triangle
+	# second option : could list 3 points of the triangle + its center, and take the closest point, returning its height
+	return (found_triangle[0][1] + found_triangle[1][1] + found_triangle[2][1]) / 3
+
+def get_index_of_intersecting_triangle(marker_to_adapt, triangles_set):
+	found = False
+	current_triangle_index = 0
+	while current_triangle_index < len(triangles_set) and not found:
+		if is_inside_triangle([marker_to_adapt[1], marker_to_adapt[3]], triangles_set[current_triangle_index]):
+			found = True
+		current_triangle_index += 1
+	if not found:
+		# could do plan b, only if not found : look for closest : old code :
+		"""
 		for current_point in triangles_set[current_triangle_index]:
 			this_distance = get_distance(current_point, [marker_to_adapt[1], marker_to_adapt[3]])
 			if best_distance == None or this_distance < best_distance:
 				best_distance = this_distance
 				best_point = current_point
-	# print("'==> ",best_point, best_distance)
+		"""
+		raise ValueError("No triangle found")
+	return current_triangle_index - 1
 
-	# if best distance is too far, could also take the middle of the triangle
-	return round(best_point[1], 3)
+def is_inside_triangle(two_dim_pos, this_triangle):
+	is_in_axis_0 = ((this_triangle[0][0] <= two_dim_pos[0] <= this_triangle[1][0]) or (this_triangle[0][0] <= two_dim_pos[0] <= this_triangle[2][0]) or (this_triangle[1][0] <= two_dim_pos[0] <= this_triangle[2][0]) or
+					(this_triangle[0][0] >= two_dim_pos[0] >= this_triangle[1][0]) or (this_triangle[0][0] >= two_dim_pos[0] >= this_triangle[2][0]) or (this_triangle[1][0] >= two_dim_pos[0] >= this_triangle[2][0]))
+
+	on_axis_1 = False
+	if is_in_axis_0:  # optimisation
+		on_axis_1 = ((this_triangle[0][2] <= two_dim_pos[1] <= this_triangle[1][2]) or (this_triangle[0][2] <= two_dim_pos[1] <= this_triangle[2][2]) or (this_triangle[1][2] <= two_dim_pos[1] <= this_triangle[2][2]) or
+					 (this_triangle[0][2] >= two_dim_pos[1] >= this_triangle[1][2]) or (this_triangle[0][2] >= two_dim_pos[1] >= this_triangle[2][2]) or (this_triangle[1][2] >= two_dim_pos[1] >= this_triangle[2][2]))
+
+	return is_in_axis_0 and on_axis_1
 
 def get_list_of_triangles(model):  # to be merged later with upper function
 	list_of_triangles = get_upper_map_list_of_triangles(model)
