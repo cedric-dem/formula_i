@@ -1,10 +1,12 @@
-import sys
 from pathlib import Path
-import numpy as np
 from PIL import Image
+from statistics import median, mean
+
+import numpy as np
 import open3d as o3d
 import random
 import csv
+import sys
 import time
 
 from .config import *
@@ -402,3 +404,25 @@ def summarize_result_in_terminal(model, track_layout_markers):
 
 	print("==> lowest point : ", min_height, " highest point : ", max_height)
 	print("==> Start and end : ", track_layout_markers[0], " - ", track_layout_markers[-1])
+
+def sliding_window_median(data):
+	window_radius = 1000
+	result = []
+	quantity = len(data)
+	for current_index in range(quantity):
+		start = max(0, current_index - window_radius)
+		end = min(quantity, current_index + window_radius + 1)
+		window = data[start:end]
+		result.append(median(window))
+		#result.append(mean(window))
+	return result
+
+def smoothen_result():
+	layout_content = read_layout_file(FILENAME_TEMP_LAYOUT)
+	heights = [float(elem[2]) for elem in layout_content]
+	new_heights = sliding_window_median(heights)
+
+	for current_index in range(len(new_heights)):
+		layout_content[current_index][2] = new_heights[current_index]
+
+	in_csv_file(layout_content, FILENAME_TEMP_LAYOUT)
