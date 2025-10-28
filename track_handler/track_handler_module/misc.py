@@ -5,6 +5,7 @@ from PIL import Image
 import open3d as o3d
 import random
 import csv
+import time
 
 from .config import *
 
@@ -158,13 +159,12 @@ def merge_start_trail_end(start, trail_composition, end):
 	current_index = 0
 	continue_exploration = True
 
+	t0 = time.time()
 	while continue_exploration:
+
 		# print('====> new step : ',len(unexplored_pixels), len(explored_pixels), unexplored_pixels[0])
 		elem_to_treat = unexplored_pixels.pop(0)
 		explored_pixels.append(elem_to_treat)
-
-		if current_index % 500 == 0:
-			print('===> Current index :', current_index)
 
 		for neighbour in [[0, 1], [0, -1], [1, 0], [-1, 0]]:
 			next_coord = [elem_to_treat[0] + neighbour[0], elem_to_treat[1] + neighbour[1]]
@@ -178,6 +178,12 @@ def merge_start_trail_end(start, trail_composition, end):
 			continue_exploration = len(unexplored_pixels) > 0
 		else:
 			continue_exploration = current_index < STOP_EXPLORATION_LAYOUT_PATH_EARLY
+
+		if current_index % SHOW_TRAIL_BFS_STATE_EVERY == 0:
+			t1 = time.time()
+			time_last_per_elem = round((t1 - t0) / SHOW_TRAIL_BFS_STATE_EVERY, 2)
+			print('===> Current index :', current_index, ". time taken for those ", SHOW_TRAIL_BFS_STATE_EVERY, ": ", t1 - t0, " so average per elem ", time_last_per_elem)
+			t0 = t1
 
 	return get_formatted_layout_file_content(start, explored_pixels, end)
 
