@@ -392,15 +392,16 @@ def display_result_in_3d_window(model, track_layout_markers):
 def summarize_result_in_terminal(model, track_layout_markers):
 	# display min height, max height, track length etc
 
-	max_height = track_layout_markers[0][2]
+	max_height = float(track_layout_markers[0][2])
 	min_height = max_height
 
 	for track_layout_marker in track_layout_markers:
-		if track_layout_marker[2] > max_height:
-			max_height = track_layout_marker[2]
+		current_height = float(track_layout_marker[2])
+		if current_height > max_height:
+			max_height = current_height
 
-		if track_layout_marker[2] < min_height:
-			min_height = track_layout_marker[2]
+		if current_height< min_height:
+			min_height = current_height
 
 	print("==> lowest point : ", min_height, " highest point : ", max_height)
 	print("==> Start and end : ", track_layout_markers[0], " - ", track_layout_markers[-1])
