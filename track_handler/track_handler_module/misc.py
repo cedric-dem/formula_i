@@ -11,13 +11,21 @@ from .config import *
 
 random.seed(123456)
 
+def create_csv_layout_file():
+	t0 = time.time()
+	trackers_information = create_markers_list()
+	t1 = time.time()
+	print('==> time taken', round(t1 - t0, 2))
+
+	in_csv_file(trackers_information, FILENAME_TEMP_LAYOUT)
+
 def in_csv_file(data, filename):
 	with open(filename, mode = 'w', newline = '', encoding = 'utf-8') as file:
 		writer = csv.writer(file)
 		writer.writerows(data)
 
-def read_csv_file(filename):
-	data = []
+def read_layout_file(filename):
+	resulting_layout = []
 	with open(filename, mode = 'r', newline = '', encoding = 'utf-8') as file:
 		reader = csv.reader(file)
 		for row in reader:
@@ -27,15 +35,15 @@ def read_csv_file(filename):
 					converted_row.append(value)
 				elif col_index in (1, 3):
 					converted_row.append(int(value))
-			data.append(converted_row)
-	return data
+			resulting_layout.append(converted_row)
+	return resulting_layout
 
 def get_model():
-	print('===> Reading model')
+	print('==> Reading model')
 	MODEL_PATH = Path(path_str)
 
 	if not MODEL_PATH.exists():
-		print(f"Error: file not found: {MODEL_PATH.resolve()}")
+		print("Error: file not found: " + str(MODEL_PATH))
 		sys.exit(1)
 
 	model = o3d.io.read_triangle_model(MODEL_PATH)
@@ -44,7 +52,7 @@ def get_model():
 		print("Error: failed to load model (unsupported/corrupted GLB).")
 		sys.exit(1)
 
-	print('===> finished reading model, resizing it')
+	print('==> finished reading model, resizing it')
 	return get_resized_model(model)
 
 def create_markers_list():
@@ -59,28 +67,29 @@ def create_markers_list():
 	pixels = img.load()
 
 	start, end = detect_start_and_end_point(width, pixels, HALF_SIZE)
-	print("====> start,end", start, end)
+	print("==> start,end", start, end)
 
 	trail_composition = get_trail_shape(width, pixels, HALF_SIZE)
 	random.shuffle(trail_composition)
-	print('====> trail_composition size', len(trail_composition))
+	print('==> trail_composition size', len(trail_composition))
 
-	print("====> beginning merge")
+	print("==> beginning merge")
 	resulting_layout = merge_start_trail_end(start, trail_composition, end)
 
-	print("=> start : ", resulting_layout[:10])
-	print("=> mid : ", resulting_layout[len(resulting_layout) // 2])
-	print("=> end : ", resulting_layout[-10:])
-	print("====> Final result layout : ", len(resulting_layout))  # , ": ", resulting_layout)
+	print("==> start trail: ", resulting_layout[:10])
+	print("==> mid point: ", resulting_layout[len(resulting_layout) // 2])
+	print("==> end trail: ", resulting_layout[-10:])
+	print("==> Final result layout size : ", len(resulting_layout))  # , ": ", resulting_layout)
 
 	return resulting_layout
 
-def adapt_markers_to_model(model, FILENAME_TEMP_LAYOUT):
+def adapt_markers_to_model():
+	model = get_model()
 
 	triangles_set = get_list_of_triangles(model)
-	print("===> triangles qty", len(triangles_set))
+	print("==> triangles qty", len(triangles_set))
 
-	current_layout_markers_adapted = read_csv_file(FILENAME_TEMP_LAYOUT)
+	current_layout_markers_adapted = read_layout_file(FILENAME_TEMP_LAYOUT)
 	print('==> finish read')
 
 	continue_exploration = True
@@ -89,7 +98,7 @@ def adapt_markers_to_model(model, FILENAME_TEMP_LAYOUT):
 	remaining = count_remaining(current_layout_markers_adapted)
 
 	while continue_exploration:
-		print(">>>> current loop this execution : ", current_loop, " total quantity :", total, " remaining", remaining, " continue ", continue_exploration)
+		print("====> current loop this execution : ", current_loop, " total quantity :", total, " remaining", remaining, " continue ", continue_exploration)
 
 		# small step progress in adapting layout
 		augment_layout_markers_using_triangles_list(current_layout_markers_adapted, triangles_set, ADAPT_QUANTITY_PER_BATCH)
@@ -104,7 +113,7 @@ def adapt_markers_to_model(model, FILENAME_TEMP_LAYOUT):
 
 		continue_exploration = remaining > 0
 
-	print('===> Finished exploration')
+	print('==> Finished exploration')
 
 def count_remaining(current_trackers):
 	count = 0
@@ -113,9 +122,13 @@ def count_remaining(current_trackers):
 			count += 1
 	return count
 
-def display_map_and_markers(model, track_layout_markers):
-	display_result_in_3d_window(model, track_layout_markers)
+def display_map_and_markers():
+	model = get_model()
+
+	track_layout_markers = read_layout_file(FILENAME_TEMP_LAYOUT)
+
 	summarize_result_in_terminal(model, track_layout_markers)
+	display_result_in_3d_window(model, track_layout_markers)
 
 def create_cube(size, color, position):
 	new_cube = o3d.geometry.TriangleMesh.create_box(width = size[0], height = size[1], depth = size[2])
@@ -135,9 +148,9 @@ def detect_start_and_end_point(im_size, pixels, delta_coord):
 		x = 0
 		while x < im_size - 1 and (red_pixel is None or green_pixel is None):
 			r, g, b = pixels[x, y]
-			if r > 200 and g < 80 and b < 80:
+			if r > 128 and g < 128 and b < 128:
 				red_pixel = (x - delta_coord, y - delta_coord)
-			elif r < 80 and g > 200 and b < 80:
+			elif r < 128 and g > 128 and b < 128:
 				green_pixel = (x - delta_coord, y - delta_coord)
 			x += 1
 		y += 1
@@ -160,14 +173,11 @@ def merge_start_trail_end(start, trail_composition, end):
 
 	t0 = time.time()
 	while continue_exploration:
-
-		# print('====> new step : ',len(unexplored_pixels), len(explored_pixels), unexplored_pixels[0])
 		elem_to_treat = unexplored_pixels.pop(0)
 		explored_pixels.append(elem_to_treat)
 
 		for neighbour in [[0, 1], [0, -1], [1, 0], [-1, 0]]:
 			next_coord = [elem_to_treat[0] + neighbour[0], elem_to_treat[1] + neighbour[1]]
-			# print("=====> ",explored_pixels[0],trail_composition[0], unexplored_pixels[0], next_coord)
 			if (next_coord not in explored_pixels) and (next_coord not in unexplored_pixels) and (next_coord in trail_composition):
 				unexplored_pixels.append(next_coord)
 
@@ -180,22 +190,20 @@ def merge_start_trail_end(start, trail_composition, end):
 
 		if current_index % SHOW_TRAIL_BFS_STATE_EVERY == 0:
 			t1 = time.time()
-			time_last_per_elem = round((t1 - t0) / SHOW_TRAIL_BFS_STATE_EVERY, 2)
-			print('===> Current index :', current_index, ". time taken for those ", SHOW_TRAIL_BFS_STATE_EVERY, ": ", t1 - t0, " so average per elem ", time_last_per_elem)
+			print('====> Current index :', current_index, ". time taken for those ", SHOW_TRAIL_BFS_STATE_EVERY, ": ", round(t1 - t0, 2), " so average per elem ", round((t1 - t0) / SHOW_TRAIL_BFS_STATE_EVERY, 2))
 			t0 = t1
 
 	return get_formatted_layout_file_content(start, explored_pixels, end)
 
 def get_formatted_layout_file_content(start, explored_pixels, end):
-	result = [["START", start[0], "?", start[1]]]
+	formatted_list = [["START", start[0], "?", start[1]]]
 	for i in range(len(explored_pixels)):
-		result.append([i, explored_pixels[i][0], "?", explored_pixels[i][1]])
-	result.append(["END", end[0], "?", end[1]])
-	return result
+		formatted_list.append([i, explored_pixels[i][0], "?", explored_pixels[i][1]])
+	formatted_list.append(["END", end[0], "?", end[1]])
+	return formatted_list
 
 def get_distance(mesh_3d_point, tracker_coord_2d):
-	# print('====> dist ', mesh_3d_point, tracker_coord_2d)
-	return ((((tracker_coord_2d[0] - mesh_3d_point[0]) ** 2)) + ((tracker_coord_2d[1] - mesh_3d_point[2]) ** 2)) ** 0.5
+	return (((tracker_coord_2d[0] - mesh_3d_point[0]) ** 2) + ((tracker_coord_2d[1] - mesh_3d_point[2]) ** 2)) ** 0.5
 
 def augment_layout_markers_using_triangles_list(current_adapted_track_layout, triangles_set, quantity):
 	current_index = 0
@@ -207,19 +215,16 @@ def augment_layout_markers_using_triangles_list(current_adapted_track_layout, tr
 
 		if isinstance(current_adapted_track_layout[current_index][2], str) and current_adapted_track_layout[current_index][2].startswith("?"):
 			# adapt that one
-			height = get_adapted_height_of_marker(current_adapted_track_layout[current_index], triangles_set)
-			current_adapted_track_layout[current_index][2] = height
+			current_adapted_track_layout[current_index][2] = get_adapted_height_of_marker(current_adapted_track_layout[current_index], triangles_set)
 			current_found += 1
 
 		current_index += 1
 
 		continue_exploration = (current_found < quantity) and not (current_index >= len(current_adapted_track_layout))
 
-	if current_found % quantity == 0: #if finished by reaching end
+	if current_found % quantity == 0:  # if finished by reaching end
 		t1 = time.time()
-		time_last_per_elem = round((t1 - t0) / quantity, 2)
-		print('===> Current index :', current_index, ". time taken for those last ", quantity, ": ", t1 - t0, " so average per elem ", time_last_per_elem)
-
+		print('====> Current index :', current_index, ". time taken for those last ", quantity, ": ", round(t1 - t0, 2), " so average per elem ", round((t1 - t0) / quantity, 2))
 
 def get_adapted_height_of_marker(marker_to_adapt, triangles_set):
 	intersecting_triangle_index = get_index_of_intersecting_triangle(marker_to_adapt, triangles_set)
@@ -255,19 +260,14 @@ def get_index_of_intersecting_triangle(marker_to_adapt, triangles_set):
 		raise ValueError("No triangle found")
 	return current_triangle_index - 1
 
-def is_inside_triangle(two_dim_pos, this_triangle):
-	is_in_axis_0 = ((this_triangle[0][0] <= two_dim_pos[0] <= this_triangle[1][0]) or (this_triangle[0][0] <= two_dim_pos[0] <= this_triangle[2][0]) or (this_triangle[1][0] <= two_dim_pos[0] <= this_triangle[2][0]) or
-					(this_triangle[0][0] >= two_dim_pos[0] >= this_triangle[1][0]) or (this_triangle[0][0] >= two_dim_pos[0] >= this_triangle[2][0]) or (this_triangle[1][0] >= two_dim_pos[0] >= this_triangle[2][0]))
-
-	on_axis_1 = False
-	if is_in_axis_0:  # optimisation
-		on_axis_1 = ((this_triangle[0][2] <= two_dim_pos[1] <= this_triangle[1][2]) or (this_triangle[0][2] <= two_dim_pos[1] <= this_triangle[2][2]) or (this_triangle[1][2] <= two_dim_pos[1] <= this_triangle[2][2]) or
-					 (this_triangle[0][2] >= two_dim_pos[1] >= this_triangle[1][2]) or (this_triangle[0][2] >= two_dim_pos[1] >= this_triangle[2][2]) or (this_triangle[1][2] >= two_dim_pos[1] >= this_triangle[2][2]))
-
-	return is_in_axis_0 and on_axis_1
+def is_inside_triangle(two_dim_pos, this_triangle):  # TODO clean this
+	return ((this_triangle[0][0] <= two_dim_pos[0] <= this_triangle[1][0]) or (this_triangle[0][0] <= two_dim_pos[0] <= this_triangle[2][0]) or (this_triangle[1][0] <= two_dim_pos[0] <= this_triangle[2][0]) or (
+			this_triangle[0][0] >= two_dim_pos[0] >= this_triangle[1][0]) or (this_triangle[0][0] >= two_dim_pos[0] >= this_triangle[2][0]) or (this_triangle[1][0] >= two_dim_pos[0] >= this_triangle[2][0])) and (
+			(this_triangle[0][2] <= two_dim_pos[1] <= this_triangle[1][2]) or (this_triangle[0][2] <= two_dim_pos[1] <= this_triangle[2][2]) or (this_triangle[1][2] <= two_dim_pos[1] <= this_triangle[2][2]) or (
+			this_triangle[0][2] >= two_dim_pos[1] >= this_triangle[1][2]) or (this_triangle[0][2] >= two_dim_pos[1] >= this_triangle[2][2]) or (this_triangle[1][2] >= two_dim_pos[1] >= this_triangle[2][2]))
 
 def get_list_of_triangles(model):  # to be merged later with upper function
-	list_of_triangles = get_upper_map_list_of_triangles(model)
+	list_of_triangles = get_initial_list_of_triangles(model, 1)
 	random.shuffle(list_of_triangles)
 	return list_of_triangles
 
@@ -280,17 +280,14 @@ def get_initial_list_of_triangles(model, i):
 	triangles = [vertices[tri].tolist() for tri in faces]
 	return triangles
 
-def get_upper_map_list_of_triangles(model):
-	return get_initial_list_of_triangles(model, 1)
-
 def get_original_map_borders(model):
 	# triangles_list = get_initial_list_of_triangles(model, 0) #-3464.262451171875 3464.262451171875 -3464.27783203125 3464.27783203125
 	triangles_list = get_initial_list_of_triangles(model, 1)  # -3464.262451171875 3464.262451171875 -3464.27783203125 3464.27783203125
 
-	max_x = -99999
-	max_z = -99999
-	min_x = 99999
-	min_z = 99999
+	max_x = triangles_list[0][0][0]
+	min_x = max_x
+	min_z = triangles_list[0][0][2]
+	max_z = min_z
 
 	for current_triangle in triangles_list:
 		for current_point in current_triangle:
@@ -302,7 +299,7 @@ def get_original_map_borders(model):
 			min_z = min(min_z, this_z)
 			max_z = max(max_z, this_z)
 
-	print("=======================> vertices border ", min_x, max_x, min_z, max_z)
+	print("==> vertices border ", min_x, max_x, min_z, max_z)
 	return [min_x, max_x, min_z, max_z]
 
 def get_resized_model(model):
@@ -333,9 +330,6 @@ def get_resized_model(model):
 	get_original_map_borders(model)
 
 	return model
-
-def get_scene_cube_markers(track_layout_markers):
-	return get_cubes_scene_not_adapted(track_layout_markers) + get_cubes_scene_adapted(track_layout_markers) + get_border_scene_cube_markers()
 
 def get_cubes_scene_not_adapted(track_layout_markers):  # cubes not adapted : red
 	cube_size = 7
@@ -378,7 +372,7 @@ def get_border_scene_cube_markers():  # markers border scene  : blue
 	]
 
 def display_result_in_3d_window(model, track_layout_markers):
-	scene_cubes = get_scene_cube_markers(track_layout_markers)
+	scene_cubes = get_cubes_scene_not_adapted(track_layout_markers) + get_cubes_scene_adapted(track_layout_markers) + get_border_scene_cube_markers()
 
 	try:
 		app = o3d.visualization.gui.Application.instance
@@ -391,4 +385,16 @@ def display_result_in_3d_window(model, track_layout_markers):
 
 def summarize_result_in_terminal(model, track_layout_markers):
 	# display min height, max height, track length etc
-	pass
+
+	max_height = track_layout_markers[0][2]
+	min_height = max_height
+
+	for track_layout_marker in track_layout_markers:
+		if track_layout_marker[2] > max_height:
+			max_height = track_layout_marker[2]
+
+		if track_layout_marker[2] < min_height:
+			min_height = track_layout_marker[2]
+
+	print("==> lowest point : ", min_height, " highest point : ", max_height)
+	print("==> Start and end : ", track_layout_markers[0], " - ", track_layout_markers[-1])
