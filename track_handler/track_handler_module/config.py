@@ -1,7 +1,7 @@
 ################
 
 building_presence = 0
-gp_index = 8  # 13
+gp_index = 13  # 13
 
 ################
 
@@ -10,7 +10,7 @@ HALF_SIZE = 2500
 
 ## script 1
 SHOW_TRAIL_BFS_STATE_EVERY = 500
-STOP_EXPLORATION_LAYOUT_PATH_EARLY = 5000  # stop loop after that many steps (or none to go until the end)
+STOP_EXPLORATION_LAYOUT_PATH_EARLY = None  # stop loop after that many steps (or none to go until the end)
 
 ## script 2
 ADAPT_QUANTITY_PER_BATCH = 1000

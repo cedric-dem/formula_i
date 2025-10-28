@@ -345,8 +345,8 @@ def get_cubes_scene_not_adapted(track_layout_markers):  # cubes not adapted : re
 	return cubes_list
 
 def get_cubes_scene_adapted(track_layout_markers):  # cubes adapted : green
-	cube_size = 7
-	proportion_to_show = 0.01
+	cube_size = 5
+	proportion_to_show = 0.03
 	cubes_list = []
 	for current_marker_index in range(len(track_layout_markers)):
 		if not (isinstance(track_layout_markers[current_marker_index][2], str) and track_layout_markers[current_marker_index][2].startswith("?")):
