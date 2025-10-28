@@ -21,10 +21,10 @@ def read_csv_file(filename):
 		reader = csv.reader(file)
 		for row in reader:
 			converted_row = []
-			for i, value in enumerate(row):
-				if i in (0, 2):
+			for col_index, value in enumerate(row):
+				if col_index in (0, 2):
 					converted_row.append(value)
-				elif i in (1, 3):
+				elif col_index in (1, 3):
 					converted_row.append(int(value))
 			data.append(converted_row)
 	return data
@@ -49,27 +49,23 @@ def get_model():
 def create_markers_list():
 	print("==> layout image path : ", image_layout_path)
 
-	path = image_layout_path
-	img = Image.open(path).convert("RGB")
+	img = Image.open(image_layout_path).convert("RGB")
 	width, height = img.size
 
 	if width != height:
 		raise Exception("not square image")
 
-	im_size = width
 	pixels = img.load()
 
-	start, end = detect_start_and_end_point(im_size, pixels, HALF_SIZE)
+	start, end = detect_start_and_end_point(width, pixels, HALF_SIZE)
 	print("====> start,end", start, end)
 
-	trail_composition = get_trail_shape(im_size, pixels, HALF_SIZE)
+	trail_composition = get_trail_shape(width, pixels, HALF_SIZE)
 	random.shuffle(trail_composition)
 	print('====> trail_composition size', len(trail_composition))
 
-	if SUBSET_TRAIL_SIZE == None:
-		resulting_layout = merge_start_trail_end(start, trail_composition, end)
-	else:
-		resulting_layout = merge_start_trail_end(start, trail_composition[:SUBSET_TRAIL_SIZE], end)
+	print("====> beginning merge")
+	resulting_layout = merge_start_trail_end(start, trail_composition, end)
 
 	print("=> start : ", resulting_layout[:10])
 	print("=> mid : ", resulting_layout[len(resulting_layout) // 2])
@@ -94,7 +90,7 @@ def adapt_markers_to_model(model, FILENAME_TEMP_LAYOUT):
 
 	while continue_exploration:
 		# small step progress in adapting layout
-		augment_layout_markers_using_triangles_list(current_layout_markers_adapted, triangles_set, ADAPT_QUANTITY)
+		augment_layout_markers_using_triangles_list(current_layout_markers_adapted, triangles_set, ADAPT_QUANTITY_PER_BATCH)
 
 		# write in csv file
 		in_csv_file(current_layout_markers_adapted, FILENAME_TEMP_LAYOUT)
@@ -118,11 +114,8 @@ def count_remaining(current_trackers):
 	return count
 
 def display_map_and_markers(model, track_layout_markers):
-	if DISPLAY_RESULT == "IN_3D_WINDOW":
-		display_result_in_3d_window(model, track_layout_markers)
-
-	elif DISPLAY_RESULT == "SUMMARIZE_IN_TERMINAL":
-		summarize_result_in_terminal(model, track_layout_markers)
+	display_result_in_3d_window(model, track_layout_markers)
+	summarize_result_in_terminal(model, track_layout_markers)
 
 def create_cube(size, color, position):
 	new_cube = o3d.geometry.TriangleMesh.create_box(width = size[0], height = size[1], depth = size[2])
@@ -148,17 +141,15 @@ def detect_start_and_end_point(im_size, pixels, delta_coord):
 				green_pixel = (x - delta_coord, y - delta_coord)
 			x += 1
 		y += 1
-	return [red_pixel, green_pixel]
+	return [green_pixel, red_pixel]
 
 def get_trail_shape(im_size, pixels, delta_coord):
-	result = [
+	return [
 		[x - delta_coord, y - delta_coord]
 		for y in range(im_size)
 		for x in range(im_size)
-		# if ((pixels[x, y][0] < 50 and pixels[x, y][1] < 50 and pixels[x, y][2] < 50) or (pixels[x, y][0] > 200 and pixels[x, y][1] < 80 and pixels[x, y][2] < 80) or (pixels[x, y][0] < 80 and pixels[x, y][1] > 200 and pixels[x, y][2] < 80))
 		if ((pixels[x, y][0] < 125 and pixels[x, y][1] < 128 and pixels[x, y][2] < 128) or (pixels[x, y][0] > 128 and pixels[x, y][1] < 128 and pixels[x, y][2] < 128) or (pixels[x, y][0] < 128 and pixels[x, y][1] > 128 and pixels[x, y][2] < 128))
 	]
-	return result
 
 def merge_start_trail_end(start, trail_composition, end):
 	unexplored_pixels = [[start[0], start[1]]]
@@ -169,21 +160,17 @@ def merge_start_trail_end(start, trail_composition, end):
 
 	while continue_exploration:
 		# print('====> new step : ',len(unexplored_pixels), len(explored_pixels), unexplored_pixels[0])
+		elem_to_treat = unexplored_pixels.pop(0)
+		explored_pixels.append(elem_to_treat)
 
-		if CUT_BFS:  # for debug
-			unexplored_pixels.append(trail_composition[0])
-			random.shuffle(trail_composition)
-			random.shuffle(unexplored_pixels)
+		if current_index % 500 == 0:
+			print('===> Current index :', current_index)
 
-		else:
-			elem_to_treat = unexplored_pixels.pop(0)
-			explored_pixels.append(elem_to_treat)
-
-			for neighbour in [[0, 1], [0, -1], [1, 0], [-1, 0]]:
-				next_coord = [elem_to_treat[0] + neighbour[0], elem_to_treat[1] + neighbour[1]]
-				# print("=====> ",explored_pixels[0],trail_composition[0], unexplored_pixels[0], next_coord)
-				if (next_coord not in explored_pixels) and (next_coord not in unexplored_pixels) and (next_coord in trail_composition):
-					unexplored_pixels.append(next_coord)
+		for neighbour in [[0, 1], [0, -1], [1, 0], [-1, 0]]:
+			next_coord = [elem_to_treat[0] + neighbour[0], elem_to_treat[1] + neighbour[1]]
+			# print("=====> ",explored_pixels[0],trail_composition[0], unexplored_pixels[0], next_coord)
+			if (next_coord not in explored_pixels) and (next_coord not in unexplored_pixels) and (next_coord in trail_composition):
+				unexplored_pixels.append(next_coord)
 
 		current_index += 1
 
@@ -192,26 +179,18 @@ def merge_start_trail_end(start, trail_composition, end):
 		else:
 			continue_exploration = current_index < STOP_EXPLORATION_LAYOUT_PATH_EARLY
 
+	return get_formatted_layout_file_content(start, explored_pixels, end)
+
+def get_formatted_layout_file_content(start, explored_pixels, end):
 	result = [["START", start[0], "?", start[1]]]
 	for i in range(len(explored_pixels)):
 		result.append([i, explored_pixels[i][0], "?", explored_pixels[i][1]])
 	result.append(["END", end[0], "?", end[1]])
-
 	return result
 
 def get_distance(mesh_3d_point, tracker_coord_2d):
 	# print('====> dist ', mesh_3d_point, tracker_coord_2d)
-	# return random.randint(0,12)
 	return ((((tracker_coord_2d[0] - mesh_3d_point[0]) ** 2)) + ((tracker_coord_2d[1] - mesh_3d_point[2]) ** 2)) ** 0.5
-
-def add_4_corners_trackers(markers_objects_scene):
-	color = [0, 0, 1]
-	cube_size = 50
-	d = HALF_SIZE
-	markers_objects_scene.append(create_cube([cube_size, cube_size, cube_size], color, [d, 0, d]))
-	markers_objects_scene.append(create_cube([cube_size, cube_size, cube_size], color, [-d, 0, d]))
-	markers_objects_scene.append(create_cube([cube_size, cube_size, cube_size], color, [d, 0, -d]))
-	markers_objects_scene.append(create_cube([cube_size, cube_size, cube_size], color, [-d, 0, -d]))
 
 def augment_layout_markers_using_triangles_list(current_adapted_track_layout, triangles_set, quantity):
 	current_index = 0
@@ -223,12 +202,9 @@ def augment_layout_markers_using_triangles_list(current_adapted_track_layout, tr
 			# adapt that one
 			height = adapt_one_marker_to_model(current_adapted_track_layout[current_index], triangles_set)
 			current_adapted_track_layout[current_index][2] = height
-
-			current_index += 1
 			current_found += 1
 
-		else:
-			current_index += 1
+		current_index += 1
 
 		continue_exploration = (current_found < quantity) and not (current_index >= len(current_adapted_track_layout))
 
@@ -267,7 +243,7 @@ def get_initial_list_of_triangles(model, i):
 def get_upper_map_list_of_triangles(model):
 	return get_initial_list_of_triangles(model, 1)
 
-def get_original_map_vertices(model):
+def get_original_map_borders(model):
 	# triangles_list = get_initial_list_of_triangles(model, 0) #-3464.262451171875 3464.262451171875 -3464.27783203125 3464.27783203125
 	triangles_list = get_initial_list_of_triangles(model, 1)  # -3464.262451171875 3464.262451171875 -3464.27783203125 3464.27783203125
 
@@ -277,24 +253,20 @@ def get_original_map_vertices(model):
 	min_z = 99999
 
 	for current_triangle in triangles_list:
-		for vertice in current_triangle:
-			this_x = vertice[0]
-			this_z = vertice[2]
+		for current_point in current_triangle:
+			this_x = current_point[0]
+			this_z = current_point[2]
 
-			if this_x > max_x:
-				max_x = this_x
-			if this_x < min_x:
-				min_x = this_x
-			if this_z > max_z:
-				max_z = this_z
-			if this_z < min_z:
-				min_z = this_z
+			min_x = min(min_x, this_x)
+			max_x = max(max_x, this_x)
+			min_z = min(min_z, this_z)
+			max_z = max(max_z, this_z)
 
-	print("=======================> vertices ", min_x, max_x, min_z, max_z)
+	print("=======================> vertices border ", min_x, max_x, min_z, max_z)
 	return [min_x, max_x, min_z, max_z]
 
 def get_resized_model(model):
-	min_x, max_x, min_z, max_z = get_original_map_vertices(model)
+	min_x, max_x, min_z, max_z = get_original_map_borders(model)
 
 	current_range_x = max_x - min_x
 	current_range_z = max_z - min_z
@@ -302,9 +274,7 @@ def get_resized_model(model):
 	if current_range_x == 0 or current_range_z == 0:
 		raise ValueError("Invalid map dimensions: zero width or height detected.")
 
-	target_min = -HALF_SIZE
-	target_max = HALF_SIZE
-	target_span = target_max - target_min
+	target_span = 2 * HALF_SIZE
 
 	scale_x = target_span / current_range_x
 	scale_z = target_span / current_range_z
@@ -314,31 +284,20 @@ def get_resized_model(model):
 		mesh_vertices = np.asarray(mesh.vertices)
 
 		transformed_vertices = mesh_vertices.copy()
-		transformed_vertices[:, 0] = (mesh_vertices[:, 0] - min_x) * scale_x + target_min
-		transformed_vertices[:, 2] = (mesh_vertices[:, 2] - min_z) * scale_z + target_min
+		transformed_vertices[:, 0] = (mesh_vertices[:, 0] - min_x) * scale_x - HALF_SIZE
+		transformed_vertices[:, 2] = (mesh_vertices[:, 2] - min_z) * scale_z - HALF_SIZE
 
 		mesh.vertices = o3d.utility.Vector3dVector(transformed_vertices)
 
 	# display new vertices
-	get_original_map_vertices(model)
+	get_original_map_borders(model)
 
 	return model
 
 def get_scene_cube_markers(track_layout_markers):
-	cubes_list = []
+	return get_cubes_scene_not_adapted(track_layout_markers) + get_cubes_scene_adapted(track_layout_markers) + get_border_scene_cube_markers()
 
-	# cubes not adapted : red
-	cubes_list += get_cubes_scene_not_adapted(track_layout_markers)
-
-	# cubes adapted : green
-	cubes_list += get_cubes_scene_adapted(track_layout_markers)
-
-	# markers border scene  : blue
-	cubes_list += get_border_scene_cube_markers()
-
-	return cubes_list
-
-def get_cubes_scene_not_adapted(track_layout_markers):
+def get_cubes_scene_not_adapted(track_layout_markers):  # cubes not adapted : red
 	cube_size = 7
 	cube_height = 100
 	proportion_to_show = 0.01
@@ -351,19 +310,19 @@ def get_cubes_scene_not_adapted(track_layout_markers):
 				cubes_list.append(new_cube)
 	return cubes_list
 
-def get_cubes_scene_adapted(track_layout_markers):
+def get_cubes_scene_adapted(track_layout_markers):  # cubes adapted : green
 	cube_size = 7
 	proportion_to_show = 0.01
 	cubes_list = []
 	for current_marker_index in range(len(track_layout_markers)):
-		if not(isinstance(track_layout_markers[current_marker_index][2], str) and track_layout_markers[current_marker_index][2].startswith("?")):
+		if not (isinstance(track_layout_markers[current_marker_index][2], str) and track_layout_markers[current_marker_index][2].startswith("?")):
 			if random.random() < proportion_to_show:
 				this_position = [track_layout_markers[current_marker_index][1], float(track_layout_markers[current_marker_index][2]), track_layout_markers[current_marker_index][3]]
 				new_cube = create_cube([cube_size, cube_size, cube_size], [0, 1, 0], this_position)
 				cubes_list.append(new_cube)
 	return cubes_list
 
-def get_border_scene_cube_markers():
+def get_border_scene_cube_markers():  # markers border scene  : blue
 	cube_size = 50
 	second_marker_height = 1000
 	return [
