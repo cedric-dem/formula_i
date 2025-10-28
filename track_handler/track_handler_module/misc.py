@@ -4,12 +4,33 @@ import numpy as np
 from PIL import Image
 import open3d as o3d
 import random
+import csv
 
 from .config import *
 
 random.seed(123456)
 
+def in_csv_file(data, filename):
+	with open(filename, mode = 'w', newline = '', encoding = 'utf-8') as file:
+		writer = csv.writer(file)
+		writer.writerows(data)
+
+def read_csv_file(filename):
+	data = []
+	with open(filename, mode = 'r', newline = '', encoding = 'utf-8') as file:
+		reader = csv.reader(file)
+		for row in reader:
+			converted_row = []
+			for i, value in enumerate(row):
+				if i in (0, 2):
+					converted_row.append(value)
+				elif i in (1, 3):
+					converted_row.append(int(value))
+			data.append(converted_row)
+	return data
+
 def get_model():
+	print('===> Reading model')
 	MODEL_PATH = Path(path_str)
 
 	if not MODEL_PATH.exists():
@@ -22,6 +43,7 @@ def get_model():
 		print("Error: failed to load model (unsupported/corrupted GLB).")
 		sys.exit(1)
 
+	print('===> finished reading model, resizing it')
 	return get_resized_model(model)
 
 def create_markers_list():
@@ -56,17 +78,44 @@ def create_markers_list():
 
 	return resulting_layout
 
-def adapt_markers_to_model(model, trackers_information):
-	triangles_set = get_complete_list_of_triangles(model)
-
+def adapt_markers_to_model(model, FILENAME_TEMP_LAYOUT):
+	triangles_set = get_list_of_triangles(model)
 	if SUBSET_TRIANGLES_SIZE == None:
 		print("===> triangles qty", len(triangles_set))
 	else:
 		print("===> triangles qty", len(triangles_set), "but will reduce to ", SUBSET_TRIANGLES_SIZE)
 		triangles_set = triangles_set[:SUBSET_TRIANGLES_SIZE]
 
-	track_layout_markers = get_track_layout_markers(trackers_information, triangles_set)
-	return track_layout_markers
+	current_layout_markers_adapted = read_csv_file(FILENAME_TEMP_LAYOUT)
+
+	continue_exploration = True
+	current_loop = 0
+	total = len(current_layout_markers_adapted)
+
+	while continue_exploration:
+		# small step progress in adapting layout
+		augment_layout_markers_using_triangles_list(current_layout_markers_adapted, triangles_set, ADAPT_QUANTITY)
+
+		# write in csv file
+		in_csv_file(current_layout_markers_adapted, FILENAME_TEMP_LAYOUT)
+
+		# check if needed to continue
+		current_loop += 1
+
+		remaining = count_remaining(current_layout_markers_adapted)
+
+		continue_exploration = remaining > 0
+
+		print(">>>> current loop this execution : ", current_loop, " total quantity :", total, " remaining", remaining, " continue ", continue_exploration)
+
+	print('===> Finished exploration')
+
+def count_remaining(current_trackers):
+	count = 0
+	for row in current_trackers:
+		if isinstance(row[2], str) and row[2].startswith("?"):
+			count += 1
+	return count
 
 def display_map_and_markers(model, track_layout_markers):
 	if DISPLAY_RESULT == "IN_3D_WINDOW":
@@ -112,8 +161,6 @@ def get_trail_shape(im_size, pixels, delta_coord):
 	return result
 
 def merge_start_trail_end(start, trail_composition, end):
-	result = [["START", start[0], start[1]]]
-
 	unexplored_pixels = [[start[0], start[1]]]
 	explored_pixels = []
 
@@ -123,102 +170,39 @@ def merge_start_trail_end(start, trail_composition, end):
 	while continue_exploration:
 		# print('====> new step : ',len(unexplored_pixels), len(explored_pixels), unexplored_pixels[0])
 
-		elem_to_treat = unexplored_pixels.pop(0)
-		explored_pixels.append(elem_to_treat)
-		result.append([current_index, elem_to_treat[0], elem_to_treat[1]])
-
 		if CUT_BFS:  # for debug
 			unexplored_pixels.append(trail_composition[0])
 			random.shuffle(trail_composition)
 			random.shuffle(unexplored_pixels)
 
 		else:
+			elem_to_treat = unexplored_pixels.pop(0)
+			explored_pixels.append(elem_to_treat)
+
 			for neighbour in [[0, 1], [0, -1], [1, 0], [-1, 0]]:
-				# for neighbour in [[0, 1], [0, -1], [1, 0], [-1, 0], [1,1], [1,-1], [-1,1], [-1,-1]]:
-				# for neighbour in [[0, 1], [0, -1], [1, 0], [-1, 0], [1,1], [1,-1], [-1,1], [-1,-1], [-2,0 ], [2,0], [0, -2], [0,2]]:
 				next_coord = [elem_to_treat[0] + neighbour[0], elem_to_treat[1] + neighbour[1]]
 				# print("=====> ",explored_pixels[0],trail_composition[0], unexplored_pixels[0], next_coord)
-				if (next_coord not in unexplored_pixels) and (next_coord not in explored_pixels) and (next_coord in trail_composition):
+				if (next_coord not in explored_pixels) and (next_coord not in unexplored_pixels) and (next_coord in trail_composition):
 					unexplored_pixels.append(next_coord)
 
 		current_index += 1
 
-		if STOP_EXPLORATION_EARLY == None:
+		if STOP_EXPLORATION_LAYOUT_PATH_EARLY == None:
 			continue_exploration = len(unexplored_pixels) > 0
 		else:
-			continue_exploration = current_index < STOP_EXPLORATION_EARLY
+			continue_exploration = current_index < STOP_EXPLORATION_LAYOUT_PATH_EARLY
 
-	result.append(["END", end[0], end[1]])
+	result = [["START", start[0], "?", start[1]]]
+	for i in range(len(explored_pixels)):
+		result.append([i, explored_pixels[i][0], "?", explored_pixels[i][1]])
+	result.append(["END", end[0], "?", end[1]])
 
 	return result
 
-def get_index_of_triangle_intersecting_with_cube_on_y_axis(triangles_set, tracker_info):
-	# to improve precision : could find intersection in the triangle but for now closes t point will do the job
-	best_distance = None
-	best_index = None
-
-	for current_triangle_index in range(len(triangles_set)):
-		for current_point in triangles_set[current_triangle_index]:
-			this_distance = get_distance(current_point, tracker_info[1:])
-			if best_distance == None or this_distance < best_distance:
-				best_distance = this_distance
-				best_index = current_triangle_index
-	# print("'==> ",best_index, best_distance)
-	return best_index
-
 def get_distance(mesh_3d_point, tracker_coord_2d):
+	# print('====> dist ', mesh_3d_point, tracker_coord_2d)
 	# return random.randint(0,12)
 	return ((((tracker_coord_2d[0] - mesh_3d_point[0]) ** 2)) + ((tracker_coord_2d[1] - mesh_3d_point[2]) ** 2)) ** 0.5
-
-def display_all_triangles(triangles_set, markers_objects_scene):
-	display_triangles_all = "none"  # "only_center", "three_points", "none"
-	cube_size = 10
-	for corresponding_triangle in triangles_set:
-
-		if display_triangles_all == "only_center":
-			color = [0, 1, 0]
-			avg = [(corresponding_triangle[0][0] + corresponding_triangle[1][0] + corresponding_triangle[2][0]) / 3, (corresponding_triangle[0][1] + corresponding_triangle[1][1] + corresponding_triangle[2][1]) / 3,
-				   (corresponding_triangle[0][2] + corresponding_triangle[1][2] + corresponding_triangle[2][2]) / 3]
-
-			markers_objects_scene.append(create_cube([cube_size, cube_size, cube_size], color, avg))
-
-		elif display_triangles_all == "three_points":
-			color = [random.randint(0, 100) / 100, random.randint(0, 100) / 100, random.randint(0, 100) / 100]
-
-			markers_objects_scene.append(create_cube([cube_size, cube_size, cube_size], color, corresponding_triangle[0]))
-			markers_objects_scene.append(create_cube([cube_size, cube_size, cube_size], color, corresponding_triangle[1]))
-			markers_objects_scene.append(create_cube([cube_size, cube_size, cube_size], color, corresponding_triangle[2]))
-
-		elif display_triangles_all == "none":
-			pass
-
-def display_augmented_trackers(trackers_information, triangles_set, markers_objects_scene):
-	cube_size = 10
-
-	for current_tracker in trackers_information:
-		triangle_index = get_index_of_triangle_intersecting_with_cube_on_y_axis(triangles_set, current_tracker)
-
-		corresponding_triangle = triangles_set[triangle_index]
-
-		# color = [random.randint(0, 100) / 100, random.randint(0, 100) / 100, random.randint(0, 100) / 100]
-		color = [0, 1, 0]  # green = corresponding triangle
-
-		# markers_objects_scene.append(create_cube([cube_size, cube_size, cube_size], color, corresponding_triangle[0]))
-		# markers_objects_scene.append(create_cube([cube_size, cube_size, cube_size], color, corresponding_triangle[1]))
-		# markers_objects_scene.append(create_cube([cube_size, cube_size, cube_size], color, corresponding_triangle[2]))
-
-		avg = [(corresponding_triangle[0][0] + corresponding_triangle[1][0] + corresponding_triangle[2][0]) / 3, (corresponding_triangle[0][1] + corresponding_triangle[1][1] + corresponding_triangle[2][1]) / 3,
-			   (corresponding_triangle[0][2] + corresponding_triangle[1][2] + corresponding_triangle[2][2]) / 3]
-
-		markers_objects_scene.append(create_cube([cube_size, cube_size, cube_size], color, avg))
-
-		# point_intersection_with_the_ground = [current_tracker[1], 12, current_tracker[2]]
-		point_intersection_with_the_ground = [current_tracker[1], avg[1], current_tracker[2]]
-		# print("'=====> ",current_tracker)
-
-		# add cube to the gnd
-		cube_landed = create_cube([cube_size, cube_size, cube_size], [1, 0, 0], point_intersection_with_the_ground)  # red : coord of trackers
-		markers_objects_scene.append(cube_landed)
 
 def add_4_corners_trackers(markers_objects_scene):
 	color = [0, 0, 1]
@@ -229,34 +213,47 @@ def add_4_corners_trackers(markers_objects_scene):
 	markers_objects_scene.append(create_cube([cube_size, cube_size, cube_size], color, [d, 0, -d]))
 	markers_objects_scene.append(create_cube([cube_size, cube_size, cube_size], color, [-d, 0, -d]))
 
-def augment_layout_markers_using_triangles_list(trackers_information, triangles_set):
-	markers_objects_scene = []
-	print("triangles set :", len(triangles_set))
+def augment_layout_markers_using_triangles_list(current_adapted_track_layout, triangles_set, quantity):
+	current_index = 0
+	current_found = 0
+	continue_exploration = True
+	while continue_exploration:
 
-	print("===> trackers", len(trackers_information))
+		if isinstance(current_adapted_track_layout[current_index][2], str) and current_adapted_track_layout[current_index][2].startswith("?"):
+			# adapt that one
+			height = adapt_one_marker_to_model(current_adapted_track_layout[current_index], triangles_set)
+			current_adapted_track_layout[current_index][2] = height
 
-	# display all triangles, or not
-	display_all_triangles(triangles_set, markers_objects_scene)
+			current_index += 1
+			current_found += 1
 
-	# display trackers maybe on the ground
-	display_augmented_trackers(trackers_information, triangles_set, markers_objects_scene)
+		else:
+			current_index += 1
 
-	## add markers at 4 corners,
-	add_4_corners_trackers(markers_objects_scene)
+		continue_exploration = (current_found < quantity) and not (current_index >= len(current_adapted_track_layout))
 
-	return markers_objects_scene
+def adapt_one_marker_to_model(marker_to_adapt, triangles_set):
+	# to improve precision : could find intersection in the triangle but for now closes t point will do the job
 
-def get_track_layout_markers(trackers_information, triangles_list):
-	markers_position_3d = augment_layout_markers_using_triangles_list(trackers_information, triangles_list)
-	print("===> Markers in 3D : ", len(markers_position_3d))
+	# get_index_of_triangle_intersecting_with_cube_on_y_axis
+	best_distance = None
+	best_point = None
 
-	return markers_position_3d
+	for current_triangle_index in range(len(triangles_set)):
+		for current_point in triangles_set[current_triangle_index]:
+			this_distance = get_distance(current_point, [marker_to_adapt[1], marker_to_adapt[3]])
+			if best_distance == None or this_distance < best_distance:
+				best_distance = this_distance
+				best_point = current_point
+	# print("'==> ",best_point, best_distance)
 
-def get_complete_list_of_triangles(model):  # to be merged later with upper function
-	lst = get_upper_map_list_of_triangles(model)
-	random.shuffle(lst)
-	# {print('======> size', len(lst))
-	return lst  # for now, using a subset to debug faster
+	# if best distance is too far, could also take the middle of the triangle
+	return round(best_point[1], 3)
+
+def get_list_of_triangles(model):  # to be merged later with upper function
+	list_of_triangles = get_upper_map_list_of_triangles(model)
+	random.shuffle(list_of_triangles)
+	return list_of_triangles
 
 def get_initial_list_of_triangles(model, i):
 	mesh = model.meshes[i].mesh
@@ -327,34 +324,71 @@ def get_resized_model(model):
 
 	return model
 
+def get_scene_cube_markers(track_layout_markers):
+	cubes_list = []
+
+	# cubes not adapted : red
+	cubes_list += get_cubes_scene_not_adapted(track_layout_markers)
+
+	# cubes adapted : green
+	cubes_list += get_cubes_scene_adapted(track_layout_markers)
+
+	# markers border scene  : blue
+	cubes_list += get_border_scene_cube_markers()
+
+	return cubes_list
+
+def get_cubes_scene_not_adapted(track_layout_markers):
+	cube_size = 7
+	cube_height = 100
+	proportion_to_show = 0.01
+	cubes_list = []
+	for current_marker_index in range(len(track_layout_markers)):
+		if isinstance(track_layout_markers[current_marker_index][2], str) and track_layout_markers[current_marker_index][2].startswith("?"):
+			if random.random() < proportion_to_show:
+				this_position = [track_layout_markers[current_marker_index][1], cube_height, track_layout_markers[current_marker_index][3]]
+				new_cube = create_cube([cube_size, cube_size, cube_size], [1, 0, 0], this_position)
+				cubes_list.append(new_cube)
+	return cubes_list
+
+def get_cubes_scene_adapted(track_layout_markers):
+	cube_size = 7
+	proportion_to_show = 0.01
+	cubes_list = []
+	for current_marker_index in range(len(track_layout_markers)):
+		if not(isinstance(track_layout_markers[current_marker_index][2], str) and track_layout_markers[current_marker_index][2].startswith("?")):
+			if random.random() < proportion_to_show:
+				this_position = [track_layout_markers[current_marker_index][1], float(track_layout_markers[current_marker_index][2]), track_layout_markers[current_marker_index][3]]
+				new_cube = create_cube([cube_size, cube_size, cube_size], [0, 1, 0], this_position)
+				cubes_list.append(new_cube)
+	return cubes_list
+
+def get_border_scene_cube_markers():
+	cube_size = 50
+	second_marker_height = 1000
+	return [
+		create_cube([cube_size, cube_size, cube_size], [0, 0, 1], [HALF_SIZE, 0, HALF_SIZE]),
+		create_cube([cube_size, cube_size, cube_size], [0, 0, 1], [-HALF_SIZE, 0, HALF_SIZE]),
+		create_cube([cube_size, cube_size, cube_size], [0, 0, 1], [HALF_SIZE, 0, -HALF_SIZE]),
+		create_cube([cube_size, cube_size, cube_size], [0, 0, 1], [-HALF_SIZE, 0, -HALF_SIZE]),
+
+		create_cube([cube_size, cube_size, cube_size], [0, 0, 1], [HALF_SIZE, second_marker_height, HALF_SIZE]),
+		create_cube([cube_size, cube_size, cube_size], [0, 0, 1], [-HALF_SIZE, second_marker_height, HALF_SIZE]),
+		create_cube([cube_size, cube_size, cube_size], [0, 0, 1], [HALF_SIZE, second_marker_height, -HALF_SIZE]),
+		create_cube([cube_size, cube_size, cube_size], [0, 0, 1], [-HALF_SIZE, second_marker_height, -HALF_SIZE]),
+	]
+
 def display_result_in_3d_window(model, track_layout_markers):
+	scene_cubes = get_scene_cube_markers(track_layout_markers)
+
 	try:
 		app = o3d.visualization.gui.Application.instance
 		app.initialize()
 
-		win = o3d.visualization.O3DVisualizer(title = "view", width = 1280, height = 800)
+		o3d.visualization.draw([model] + scene_cubes)
 
-		col = np.array((0, 0, 0, 1), dtype = np.float32)
-
-		if hasattr(win, "set_background"):
-			win.set_background(col, o3d.geometry.Image())
-
-		win.add_model("title_here", model)
-
-		# Frame camera
-		if hasattr(win, "reset_camera_to_default"):
-			win.reset_camera_to_default()
-
-		app.add_window(win)
-		app.run()
-
-	except Exception as e:
-		print(f"[Info] O3DVisualizer had issues ({e}). Falling back to simple viewer.")
-		try:
-			o3d.visualization.draw([model] + track_layout_markers)
-		except Exception as e2:
-			print(f"Fallback viewer failed as well: {e2}")
-			sys.exit(1)
+	except:
+		print("Error 404")
 
 def summarize_result_in_terminal(model, track_layout_markers):
 	# display min height, max height, track length etc
