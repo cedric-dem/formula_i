@@ -351,8 +351,12 @@ def get_cubes_scene_adapted(track_layout_markers):  # cubes adapted : green
 	for current_marker_index in range(len(track_layout_markers)):
 		if not (isinstance(track_layout_markers[current_marker_index][2], str) and track_layout_markers[current_marker_index][2].startswith("?")):
 			if random.random() < proportion_to_show:
+				# color = [0, 1, 0]
+				proportion = current_marker_index / len(track_layout_markers)
+				color = [0, proportion, 1 - proportion]
+
 				this_position = [track_layout_markers[current_marker_index][1], float(track_layout_markers[current_marker_index][2]), track_layout_markers[current_marker_index][3]]
-				new_cube = create_cube([cube_size, cube_size, cube_size], [0, 1, 0], this_position)
+				new_cube = create_cube([cube_size, cube_size, cube_size], color, this_position)
 				cubes_list.append(new_cube)
 	return cubes_list
 
