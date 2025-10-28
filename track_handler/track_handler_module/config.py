@@ -38,6 +38,6 @@ path_str = "f1_tracks/" + model_type + "/" + gp_name + ".glb"
 # image_layout_path = "f1_tracks/img_layout/" + gp_name + ".jpg"
 image_layout_path = "f1_tracks/img_layout_resized/" + gp_name + ".jpg"
 
-FILENAME_TEMP_LAYOUT = "temp_layout.csv"
+FILENAME_TEMP_LAYOUT = "temp_layout_files/"+gp_name+".csv"
 
 ################
