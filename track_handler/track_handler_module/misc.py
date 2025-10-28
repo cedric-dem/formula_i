@@ -204,9 +204,6 @@ def get_formatted_layout_file_content(start, explored_pixels, end):
 	formatted_list.append(["END", end[0], "?", end[1]])
 	return formatted_list
 
-def get_distance(mesh_3d_point, tracker_coord_2d):
-	return (((tracker_coord_2d[0] - mesh_3d_point[0]) ** 2) + ((tracker_coord_2d[1] - mesh_3d_point[2]) ** 2)) ** 0.5
-
 def augment_layout_markers_using_triangles_list(current_adapted_track_layout, triangles_set, quantity):
 	current_index = 0
 	current_found = 0
@@ -233,15 +230,42 @@ def get_adapted_height_of_marker(marker_to_adapt, triangles_set):
 
 	found_triangle = triangles_set[intersecting_triangle_index]
 
-	new_height = get_height_of_intersection_between_given_two_dimensional_point_and_triangle([marker_to_adapt[1], marker_to_adapt[3]], found_triangle)
+	new_height = get_height_of_point_using_triangle([marker_to_adapt[1], marker_to_adapt[3]], found_triangle)
 
 	return round(new_height, 3)
 
-def get_height_of_intersection_between_given_two_dimensional_point_and_triangle(marker_to_adapt, found_triangle):
-	# TODO to be exact, position of point exactly on the triangle
-	# for now faster option, just take the height of the center of the triangle
-	# second option : could list 3 points of the triangle + its center, and take the closest point, returning its height
-	return (found_triangle[0][1] + found_triangle[1][1] + found_triangle[2][1]) / 3
+def get_height_of_point_using_triangle(marker_to_adapt, found_triangle):
+	# solution 0, quickest , just take the height of a random point of the triangle
+	# solution 1, just take the height of the center of the triangle
+	# solution 2, list 3 points of the triangle + its center, and take the closest point, returning its height
+	# solution 3, to be exact, position of point exactly on the triangle
+
+	avg_point = [(found_triangle[0][0] + found_triangle[1][0] + found_triangle[2][0]) / 3, (found_triangle[0][1] + found_triangle[1][1] + found_triangle[2][1]) / 3, (found_triangle[0][2] + found_triangle[1][2] + found_triangle[2][2]) / 3]
+
+	list_of_points_of_interest = found_triangle + [avg_point]
+
+	index_closest_point = get_index_of_closest_point(list_of_points_of_interest, marker_to_adapt)
+
+	# height = found_triangle[0][1]  # solution 0
+	# height = (found_triangle[0][1] + found_triangle[1][1] + found_triangle[2][1]) / 3 #solution 1
+	height = list_of_points_of_interest[index_closest_point][1]  # solution 2
+	return height
+
+def get_index_of_closest_point(list_of_points_of_interest, goal_pos):
+	current_best_index = None
+	current_best_distance = None
+	for point_index in range(len(list_of_points_of_interest)):
+		this_point = list_of_points_of_interest[point_index]  # [x,y,z]
+		this_distance = get_distance_2d([this_point[0], this_point[2]], goal_pos)
+
+		if current_best_distance is None or this_distance < current_best_distance:
+			current_best_distance = this_distance
+			current_best_index = point_index
+
+	return current_best_index
+
+def get_distance_2d(point_a, point_b):
+	return (((point_a[0] - point_b[0]) ** 2) + ((point_a[1] - point_a[1]) ** 2)) ** 0.5
 
 def get_index_of_intersecting_triangle(marker_to_adapt, triangles_set):
 	found = False
@@ -253,6 +277,8 @@ def get_index_of_intersecting_triangle(marker_to_adapt, triangles_set):
 	if not found:
 		# could do plan b, only if not found : look for closest : old code :
 		"""
+		def get_distance(mesh_3d_point, tracker_coord_2d):
+			return (((tracker_coord_2d[0] - mesh_3d_point[0]) ** 2) + ((tracker_coord_2d[1] - mesh_3d_point[2]) ** 2)) ** 0.5
 		for current_point in triangles_set[current_triangle_index]:
 			this_distance = get_distance(current_point, [marker_to_adapt[1], marker_to_adapt[3]])
 			if best_distance == None or this_distance < best_distance:
@@ -396,12 +422,13 @@ def summarize_result_in_terminal(model, track_layout_markers):
 	min_height = max_height
 
 	for track_layout_marker in track_layout_markers:
-		current_height = float(track_layout_marker[2])
-		if current_height > max_height:
-			max_height = current_height
+		if not track_layout_marker[2].startswith("?"):
+			current_height = float(track_layout_marker[2])
+			if current_height > max_height:
+				max_height = current_height
 
-		if current_height< min_height:
-			min_height = current_height
+			if current_height < min_height:
+				min_height = current_height
 
 	print("==> lowest point : ", min_height, " highest point : ", max_height)
 	print("==> Start and end : ", track_layout_markers[0], " - ", track_layout_markers[-1])
@@ -415,7 +442,7 @@ def sliding_window_median(data):
 		end = min(quantity, current_index + window_radius + 1)
 		window = data[start:end]
 		result.append(median(window))
-		#result.append(mean(window))
+	# result.append(mean(window))
 	return result
 
 def smoothen_result():
