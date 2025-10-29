@@ -373,12 +373,12 @@ def get_cubes_scene_not_adapted(track_layout_markers):  # cubes not adapted : re
 	return cubes_list
 
 def get_cubes_scene_adapted(track_layout_markers):  # cubes adapted : green
-	cube_size = 5
-	proportion_to_show = 0.03
+	cube_size = 1
+	proportion_to_show = 0.08
 	cubes_list = []
 	for current_marker_index in range(len(track_layout_markers)):
-		if not (isinstance(track_layout_markers[current_marker_index][2], str) and track_layout_markers[current_marker_index][2].startswith("?")):
-			if random.random() < proportion_to_show:
+		if 9000 < current_marker_index < 11000:
+			if not (isinstance(track_layout_markers[current_marker_index][2], str) and track_layout_markers[current_marker_index][2].startswith("?")):
 				# color = [0, 1, 0]
 				proportion = current_marker_index / len(track_layout_markers)
 				color = [0, proportion, 1 - proportion]
@@ -433,22 +433,22 @@ def summarize_result_in_terminal(model, track_layout_markers):
 	print("==> lowest point : ", min_height, " highest point : ", max_height)
 	print("==> Start and end : ", track_layout_markers[0], " - ", track_layout_markers[-1])
 
-def sliding_window_median(data):
-	window_radius = 1000
+def sliding_window_mean(data):
+	window_radius = 350
 	result = []
 	quantity = len(data)
 	for current_index in range(quantity):
 		start = max(0, current_index - window_radius)
 		end = min(quantity, current_index + window_radius + 1)
 		window = data[start:end]
-		result.append(median(window))
-	# result.append(mean(window))
+		# result.append(round(median(window),3))
+		result.append(round(mean(window), 3))
 	return result
 
 def smoothen_result():
 	layout_content = read_layout_file(FILENAME_TEMP_LAYOUT)
 	heights = [float(elem[2]) for elem in layout_content]
-	new_heights = sliding_window_median(heights)
+	new_heights = sliding_window_mean(heights)
 
 	for current_index in range(len(new_heights)):
 		layout_content[current_index][2] = new_heights[current_index]
