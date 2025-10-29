@@ -19,7 +19,7 @@ def create_csv_layout_file():
 	t1 = time.time()
 	print('==> time taken', round(t1 - t0, 2))
 
-	in_csv_file(trackers_information, FILENAME_TEMP_LAYOUT)
+	in_csv_file(trackers_information, RAW_LAYOUT_CSV_FILE)
 
 def in_csv_file(data, filename):
 	with open(filename, mode = 'w', newline = '', encoding = 'utf-8') as file:
@@ -91,7 +91,7 @@ def adapt_markers_to_model():
 	triangles_set = get_list_of_triangles(model)
 	print("==> triangles qty", len(triangles_set))
 
-	current_layout_markers_adapted = read_layout_file(FILENAME_TEMP_LAYOUT)
+	current_layout_markers_adapted = read_layout_file(RAW_LAYOUT_CSV_FILE)
 	print('==> finish read')
 
 	continue_exploration = True
@@ -106,7 +106,7 @@ def adapt_markers_to_model():
 		augment_layout_markers_using_triangles_list(current_layout_markers_adapted, triangles_set, ADAPT_QUANTITY_PER_BATCH)
 
 		# write in csv file
-		in_csv_file(current_layout_markers_adapted, FILENAME_TEMP_LAYOUT)
+		in_csv_file(current_layout_markers_adapted, RAW_LAYOUT_CSV_FILE)
 
 		# check if needed to continue
 		current_loop += 1
@@ -127,7 +127,8 @@ def count_remaining(current_trackers):
 def display_map_and_markers():
 	model = get_model()
 
-	track_layout_markers = read_layout_file(FILENAME_TEMP_LAYOUT)
+	# track_layout_markers = read_layout_file(RAW_LAYOUT_CSV_FILE)
+	track_layout_markers = read_layout_file(SMOOTHEN_LAYOUT_CSV_FILE)
 
 	summarize_result_in_terminal(model, track_layout_markers)
 	display_result_in_3d_window(model, track_layout_markers)
@@ -446,11 +447,11 @@ def sliding_window_mean(data):
 	return result
 
 def smoothen_result():
-	layout_content = read_layout_file(FILENAME_TEMP_LAYOUT)
+	layout_content = read_layout_file(RAW_LAYOUT_CSV_FILE)
 	heights = [float(elem[2]) for elem in layout_content]
 	new_heights = sliding_window_mean(heights)
 
 	for current_index in range(len(new_heights)):
 		layout_content[current_index][2] = new_heights[current_index]
 
-	in_csv_file(layout_content, FILENAME_TEMP_LAYOUT)
+	in_csv_file(layout_content, SMOOTHEN_LAYOUT_CSV_FILE)
