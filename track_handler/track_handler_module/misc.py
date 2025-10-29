@@ -419,19 +419,33 @@ def display_result_in_3d_window(model, track_layout_markers):
 def summarize_result_in_terminal(model, track_layout_markers):
 	# display min height, max height, track length etc
 
-	max_height = float(track_layout_markers[0][2])
-	min_height = max_height
+	max_x = float(track_layout_markers[0][1])
+	min_x = max_x
+
+	max_y = float(track_layout_markers[0][2])
+	min_y = max_y
+
+	max_z = float(track_layout_markers[0][3])
+	min_z = max_z
 
 	for track_layout_marker in track_layout_markers:
 		if not track_layout_marker[2].startswith("?"):
-			current_height = float(track_layout_marker[2])
-			if current_height > max_height:
-				max_height = current_height
+			current_x = float(track_layout_marker[1])
+			current_y = float(track_layout_marker[2])
+			current_z = float(track_layout_marker[3])
 
-			if current_height < min_height:
-				min_height = current_height
+			max_x = max(max_x, current_x)
+			min_x = min(min_x, current_x)
 
-	print("==> lowest point : ", min_height, " highest point : ", max_height)
+			max_y = max(max_y, current_y)
+			min_y = min(min_y, current_y)
+
+			max_z = max(max_z, current_z)
+			min_z = min(min_z, current_z)
+
+	print("==> x from ", min_x, " to ", max_x)
+	print("==> lowest point : ", min_y, " highest point : ", max_y)
+	print("==> z from ", min_z, " to ", max_z)
 	print("==> Start and end : ", track_layout_markers[0], " - ", track_layout_markers[-1])
 
 def sliding_window_mean(data):
@@ -455,3 +469,170 @@ def smoothen_result():
 		layout_content[current_index][2] = new_heights[current_index]
 
 	in_csv_file(layout_content, SMOOTHEN_LAYOUT_CSV_FILE)
+
+def get_map_as_matrix(markers_list):
+	top_map_as_matrix = [[None for _ in range(5000)] for _ in range(5000)]
+
+	for track_layout_marker in markers_list:
+		top_map_as_matrix[int(track_layout_marker[1]) + HALF_SIZE][int(track_layout_marker[3]) + HALF_SIZE] = (track_layout_marker[0], float(track_layout_marker[2]))
+
+	return top_map_as_matrix
+
+def convert_to_final_model():
+	markers_list = read_layout_file(SMOOTHEN_LAYOUT_CSV_FILE)
+	top_map_as_matrix = get_map_as_matrix(markers_list)
+
+	triangles_list = get_triangles_list_from_matrix(top_map_as_matrix)
+
+	triangles_to_glb(triangles_list)
+
+def get_triangles_list_from_matrix(top_map_as_matrix):
+	triangles_list = []
+
+	for current_i in range(1, (2 * HALF_SIZE) - 1):
+		for current_j in range(1, (2 * HALF_SIZE) - 1):
+			if top_map_as_matrix[current_i][current_j]:  # if current position is occupied
+
+				triangles_list += detect_neighbours_and_retrieve_triangles(top_map_as_matrix, current_i, current_j)
+
+	return triangles_list
+
+def detect_neighbours_and_retrieve_triangles(top_map_as_matrix, current_i, current_j):
+	number_neighbours = get_number_of_neighbours(current_i, current_j, top_map_as_matrix)
+
+	higher_x_cube = get_coord_from_position(top_map_as_matrix, current_i + 1, current_j)
+	lower_x_cube = get_coord_from_position(top_map_as_matrix, current_i - 1, current_j)
+	higher_z_cube = get_coord_from_position(top_map_as_matrix, current_i, current_j + 1)
+	lower_z_cube = get_coord_from_position(top_map_as_matrix, current_i, current_j - 1)
+
+	this_cube = get_coord_from_position(top_map_as_matrix, current_i, current_j)
+
+	new_triangles_list = []
+
+	if number_neighbours == 4:  # 4 neighbours, most common case
+		new_triangles_list = get_triangles_list_from_4_neighbour(higher_x_cube, lower_x_cube, higher_z_cube, lower_z_cube, this_cube)
+
+	elif number_neighbours == 3:  # could happen often
+		new_triangles_list = get_triangles_list_from_3_neighbour(higher_x_cube, lower_x_cube, higher_z_cube, lower_z_cube, this_cube)
+
+	elif number_neighbours == 2:  # will happen often
+		new_triangles_list = get_triangles_list_from_2_neighbour(higher_x_cube, lower_x_cube, higher_z_cube, lower_z_cube, this_cube)
+
+	elif number_neighbours == 1:  # could happen rarely, but will add nothing
+		pass
+
+	elif number_neighbours == 0:  # should not happen
+		print("=> Error triangle 0")
+
+	else:
+		print("==> Error  triangle 1", number_neighbours)
+	return new_triangles_list
+
+def get_triangles_list_from_4_neighbour(higher_x_cube, lower_x_cube, higher_z_cube, lower_z_cube, this_cube):
+	return [
+		[higher_x_cube, lower_z_cube, this_cube],
+		[lower_x_cube, higher_z_cube, this_cube],
+		[higher_z_cube, higher_x_cube, this_cube],
+		[lower_z_cube, lower_x_cube, this_cube]
+	]
+
+def get_triangles_list_from_3_neighbour(higher_x_cube, lower_x_cube, higher_z_cube, lower_z_cube, this_cube):
+	new_neighbours = []
+	if higher_x_cube is None:
+		new_neighbours = [
+			[lower_x_cube, higher_z_cube, this_cube],
+			[lower_z_cube, lower_x_cube, this_cube]
+		]
+	elif lower_x_cube is None:
+		new_neighbours = [
+			[higher_x_cube, lower_z_cube, this_cube],
+			[higher_z_cube, higher_x_cube, this_cube],
+		]
+	elif higher_z_cube is None:
+		new_neighbours = [
+			[higher_x_cube, lower_z_cube, this_cube],
+			[lower_z_cube, lower_x_cube, this_cube]
+		]
+	elif lower_z_cube is None:
+		new_neighbours = [
+			[lower_x_cube, higher_z_cube, this_cube],
+			[higher_z_cube, higher_x_cube, this_cube],
+		]
+	else:
+		print("error triangle 3")
+	return new_neighbours
+
+def get_triangles_list_from_2_neighbour(higher_x_cube, lower_x_cube, higher_z_cube, lower_z_cube, this_cube):
+	new_neighbours = []
+
+	if higher_x_cube is None and higher_z_cube is None:  # 4 first cases could happen, will add to the triangles
+		new_neighbours = [[lower_z_cube, lower_x_cube, this_cube]]
+	elif higher_x_cube is None and lower_z_cube is None:
+		new_neighbours = [[lower_x_cube, higher_z_cube, this_cube]]
+	elif lower_x_cube is None and higher_z_cube is None:
+		new_neighbours = [[higher_x_cube, lower_z_cube, this_cube]]
+	elif lower_x_cube is None and lower_z_cube is None:
+		new_neighbours = [[higher_z_cube, higher_x_cube, this_cube]]
+
+	elif higher_x_cube is None and lower_x_cube is None:  # those two should never happen, current cube is in between opposite cubes, so add nothing
+		print("error triangle 4")
+	elif higher_z_cube is None and lower_z_cube is None:
+		print("error triangle 5")
+	else:
+		print("error triangle 6")
+	return new_neighbours
+
+def get_coord_from_position(top_map_as_matrix, i, j):
+	if top_map_as_matrix[i][j]:
+		height = [i - HALF_SIZE, top_map_as_matrix[i][j][1], j - HALF_SIZE]
+	else:
+		height = None
+	return height
+
+def get_number_of_neighbours(current_i, current_j, new_matrix):
+	neighbours = [
+		new_matrix[current_i - 1][current_j] is not None,
+		new_matrix[current_i + 1][current_j] is not None,
+		new_matrix[current_i][current_j - 1] is not None,
+		new_matrix[current_i][current_j + 1] is not None
+	]
+	return sum(neighbours)
+
+def triangles_to_glb(triangles):
+	gray = 0.1
+	vert_map = {}
+	vertices = []
+	faces = []
+	for tri in triangles:
+		idxs = []
+		for p in tri:
+			key = (float(p[0]), float(p[1]), float(p[2]))
+			if key not in vert_map:
+				vert_map[key] = len(vertices)
+				vertices.append(key)
+			idxs.append(vert_map[key])
+		faces.append(idxs)
+
+	vertices = np.asarray(vertices, dtype = np.float64)
+	faces = np.asarray(faces, dtype = np.int32)
+
+	mesh = o3d.geometry.TriangleMesh(
+		vertices = o3d.utility.Vector3dVector(vertices),
+		triangles = o3d.utility.Vector3iVector(faces),
+	)
+
+	mesh.remove_duplicated_vertices()
+	mesh.remove_degenerate_triangles()
+	mesh.compute_vertex_normals()
+
+	mesh.vertex_colors = o3d.utility.Vector3dVector(np.tile(np.array([[gray, gray, gray]], dtype = np.float64), (len(vertices), 1)))
+
+	ok = o3d.io.write_triangle_mesh(
+		OUTPUT_GLB_FILE, mesh,
+		write_vertex_normals = True,
+		write_vertex_colors = True,
+		print_progress = False
+	)
+	if not ok:
+		raise RuntimeError("error")
+	return out_path

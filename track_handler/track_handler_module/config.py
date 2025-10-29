@@ -40,5 +40,6 @@ image_layout_path = "f1_tracks/img_layout_resized/" + gp_name + ".jpg"
 
 RAW_LAYOUT_CSV_FILE = "f1_tracks/layout_csv_files/" + gp_name + ".csv"
 SMOOTHEN_LAYOUT_CSV_FILE = "f1_tracks/layout_smoothen_csv_files/" + gp_name + ".csv"
+OUTPUT_GLB_FILE = "f1_tracks/output_glb_layout/" + gp_name + ".glb"
 
 ################
