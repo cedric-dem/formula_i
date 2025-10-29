@@ -38,7 +38,7 @@ path_str = "f1_tracks/" + model_type + "/" + gp_name + ".glb"
 # image_layout_path = "f1_tracks/img_layout/" + gp_name + ".jpg"
 image_layout_path = "f1_tracks/img_layout_resized/" + gp_name + ".jpg"
 
-RAW_LAYOUT_CSV_FILE = "f1_tracks/temp_layout_files/" + gp_name + ".csv"
-SMOOTHEN_LAYOUT_CSV_FILE = "f1_tracks/temp_layout_smoothen_files/" + gp_name + ".csv"
+RAW_LAYOUT_CSV_FILE = "f1_tracks/layout_csv_files/" + gp_name + ".csv"
+SMOOTHEN_LAYOUT_CSV_FILE = "f1_tracks/layout_smoothen_csv_files/" + gp_name + ".csv"
 
 ################
