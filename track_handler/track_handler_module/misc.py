@@ -635,4 +635,3 @@ def triangles_to_glb(triangles):
 	)
 	if not ok:
 		raise RuntimeError("error")
-	return out_path
