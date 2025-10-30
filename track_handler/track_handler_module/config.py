@@ -5,12 +5,10 @@ gp_index = 13  # 13
 
 ################
 
-## global
-HALF_SIZE = 2500
+HALF_MAP_SIZE = 2500
 
-PRINT_STATUS_EVERY = 1000
+PRINT_QUANTITY_PER_LOOP = 10
 
-#smoothen
 SLIDING_WINDOW_RADIUS = 350
 SLIDING_WINDOW_TECHNIQUE = "mean"
 
@@ -27,7 +25,7 @@ gp_name = [
 
 ################
 
-path_str = "f1_tracks/" + model_type + "/" + gp_name + ".glb"
+model_path_string = "f1_tracks/" + model_type + "/" + gp_name + ".glb"
 
 # image_layout_path = "f1_tracks/img_layout/" + gp_name + ".jpg"
 image_layout_path = "f1_tracks/img_layout_resized/" + gp_name + ".jpg"
