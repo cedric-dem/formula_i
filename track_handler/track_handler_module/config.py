@@ -10,6 +10,10 @@ HALF_SIZE = 2500
 
 PRINT_STATUS_EVERY = 500
 
+#smoothen
+SLIDING_WINDOW_RADIUS = 350
+SLIDING_WINDOW_TECHNIQUE = "mean"
+
 ################
 
 model_type = ["glb_files_no_buildings", "glb_files_buildings"][building_presence]

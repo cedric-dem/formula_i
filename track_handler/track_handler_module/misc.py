@@ -451,22 +451,27 @@ def summarize_result_in_terminal(model, track_layout_markers):
 	print("==> Start and end : ", track_layout_markers[0], " - ", track_layout_markers[-1])
 
 def sliding_window_mean(data):
-	window_radius = 350
 	result = []
 	quantity = len(data)
 	for current_index in range(quantity):
-		start = max(0, current_index - window_radius)
-		end = min(quantity, current_index + window_radius + 1)
+		if current_index % PRINT_STATUS_EVERY == 0:
+			print("====> current index: ", current_index, "/", quantity)
+		start = max(0, current_index - SLIDING_WINDOW_RADIUS)
+		end = min(quantity, current_index + SLIDING_WINDOW_RADIUS + 1)
 		window = data[start:end]
-		# result.append(round(median(window),3))
-		result.append(round(mean(window), 3))
+		if SLIDING_WINDOW_TECHNIQUE == "mean":
+			result.append(round(mean(window), 3))
+		elif SLIDING_WINDOW_TECHNIQUE == "median":
+			result.append(round(median(window), 3))
 	return result
 
 def smoothen_result():
+	print("==> Start smoothen")
 	layout_content = read_layout_file(RAW_LAYOUT_CSV_FILE)
 	heights = [float(elem[2]) for elem in layout_content]
 	new_heights = sliding_window_mean(heights)
 
+	print("==> finished")
 	for current_index in range(len(new_heights)):
 		layout_content[current_index][2] = new_heights[current_index]
 
