@@ -16,7 +16,6 @@ def get_real_acceleration():
 	y = [time_to_reach_each_speed[i][0] for i in range(len(time_to_reach_each_speed))]
 	return x, y
 
-
 def get_fake_y(i):
 	if i != 0:  # thanks to chatgpt for solving the equation for a,b and c to match the hardcoded list
 		result = -390.5 * math.exp(-0.173 * i) + 390.5

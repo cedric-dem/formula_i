@@ -94,7 +94,7 @@ def setup_obj_model():
 		shapeType = p.GEOM_MESH,
 		fileName = "result.obj",
 		meshScale = [1, 1, 1],
-		rgbaColor = list(get_track_color(0))+[1],
+		rgbaColor = list(ROAD_COLOR) + [1],
 	)
 
 	collision = p.createCollisionShape(
@@ -114,16 +114,7 @@ def setup_obj_model():
 def setup_environment():
 	p.setGravity(0, 0, -9.81)
 
-	if CURRENT_TRACK == "TESTING_GRID":
-		_setup_testing_grid_environment()
-	elif CURRENT_TRACK == "STRAIGHT_LINE":
-		_setup_straight_line_environment()
-	elif CURRENT_TRACK == "OVAL_RACE_TRACK":
-		_setup_oval_race_track_environment()
-	elif CURRENT_TRACK == "OBJ_MODEL":
-		setup_obj_model()
-	else:
-		raise ValueError(f"Unsupported track configuration: {CURRENT_TRACK}")
+	setup_obj_model()
 
 	if ADD_DEBUG_CUBES:
 		cube_half_extents = [1.0, 1.0, 1.0]
@@ -143,166 +134,6 @@ def setup_environment():
 				basePosition = random_position,
 			)
 
-def _setup_testing_grid_environment():
-	_create_ground_plane()
-	index = 0
-	for height, lateral_shift in ((6, 10), (12, 20), (18, 30)):
-		index += 1
-		create_track_portion(
-			ramp_height = height,
-			lateral_offset = lateral_shift,
-			color = get_track_color(index),
-		)
-
-def _setup_oval_race_track_environment():
-	segment_width = 10.0
-	segment_thickness = 0.5
-
-	major_radius = 110.0
-	minor_radius = 60.0
-
-	num_segments = 160
-	angles = [2.0 * math.pi * index / num_segments for index in range(num_segments)]
-	angle_phase = -math.pi / 2.0
-
-	for index, angle in enumerate(angles):
-		param_angle = angle + angle_phase
-
-		center_x = major_radius * math.cos(param_angle)
-		center_y = minor_radius * math.sin(param_angle) + minor_radius
-
-		next_angle = angles[(index + 1) % num_segments] + angle_phase
-		next_x = major_radius * math.cos(next_angle)
-		next_y = minor_radius * math.sin(next_angle) + minor_radius
-
-		segment_vector_x = next_x - center_x
-		segment_vector_y = next_y - center_y
-		segment_distance = math.hypot(segment_vector_x, segment_vector_y)
-
-		tangent_yaw = math.atan2(
-			minor_radius * math.cos(param_angle), -major_radius * math.sin(param_angle)
-		)
-
-		create_track_portion(
-			length = max(segment_distance * 1.25, segment_width * 0.75),
-			width = segment_width,
-			thickness = segment_thickness,
-			center_x = center_x,
-			lateral_offset = center_y,
-			color = get_track_color(index),
-			orientation_yaw = tangent_yaw,
-		)
-
-def get_track_color(index):
-	if (TRACK_COLOR_SEGMENTS == "RANDOM"):
-		color = [random.randint(0, 10) / 10, random.randint(0, 10) / 10, random.randint(0, 10) / 10]
-	elif (TRACK_COLOR_SEGMENTS == "ALTERNATING"):
-		color = ([ROAD_COLOR[0], ROAD_COLOR[1], ROAD_COLOR[2]], [ROAD_COLOR[0] * 0.9, ROAD_COLOR[1] * 0.9, ROAD_COLOR[2] * 0.9])[index % 2]
-	elif (TRACK_COLOR_SEGMENTS == "SAME"):
-		color = ROAD_COLOR
-	return color
-
-def _setup_straight_line_environment():
-	segment_length = 30.0
-	segment_width = 6.0
-	segment_thickness = 0.5
-
-	for index in range(20):
-		center_x = index * (segment_length - 0.1)
-		create_track_portion(
-			length = segment_length,
-			width = segment_width,
-			thickness = segment_thickness,
-			center_x = center_x,
-			color = get_track_color(index),
-		)
-
-def _create_ground_plane():
-	ground_half_extents = [1000.0, 1000.0, 0.1]
-	ground_collision = p.createCollisionShape(
-		p.GEOM_BOX, halfExtents = ground_half_extents
-	)
-	ground_visual = p.createVisualShape(
-		p.GEOM_BOX,
-		halfExtents = ground_half_extents,
-		rgbaColor = [GROUND_COLOR[0], GROUND_COLOR[1], GROUND_COLOR[2], 1],
-	)
-	p.createMultiBody(
-		baseMass = 0,
-		baseCollisionShapeIndex = ground_collision,
-		baseVisualShapeIndex = ground_visual,
-		basePosition = [0, 0, -ground_half_extents[2]],
-	)
-
-def create_track_portion(
-		length = 30.0,
-		width = 6.0,
-		thickness = 0.5,
-		*,
-		center_x = 0.0,
-		lateral_offset = 0.0,
-		base_height_offset = 0.0,
-		color = None,
-		ramp_height = None,
-		ramp_start_offset_x = 15.0,
-		ramp_start_depth = -2.0,
-		orientation_yaw = 0.0,
-):
-	"""Create a track portion with optional ramp or yaw characteristics."""
-
-	half_length = length / 2.0
-	half_width = width / 2.0
-	half_thickness = thickness / 2.0
-
-	color = ROAD_COLOR if color is None else color
-
-	if ramp_height is not None:
-		if orientation_yaw != 0.0:
-			raise ValueError("Ramps cannot be rotated around the vertical axis")
-		ramp_angle = -math.atan2(ramp_height, length)
-		cos_angle = math.cos(ramp_angle)
-		sin_angle = math.sin(ramp_angle)
-
-		bottom_local_x = -half_length
-		bottom_local_z = -half_thickness
-
-		center_x = ramp_start_offset_x - (
-				bottom_local_x * cos_angle + bottom_local_z * sin_angle
-		)
-		center_z = ramp_start_depth - (
-				-bottom_local_x * sin_angle + bottom_local_z * cos_angle
-		)
-		orientation_quaternion = p.getQuaternionFromEuler(
-			[0, ramp_angle, orientation_yaw]
-		)
-	else:
-		center_z = base_height_offset - half_thickness
-		orientation_quaternion = p.getQuaternionFromEuler([0, 0, orientation_yaw])
-
-	portion_collision = p.createCollisionShape(
-		p.GEOM_BOX,
-		halfExtents = [half_length, half_width, half_thickness],
-	)
-	portion_visual = p.createVisualShape(
-		p.GEOM_BOX,
-		halfExtents = [half_length, half_width, half_thickness],
-		rgbaColor = [color[0], color[1], color[2], 1],
-	)
-
-	portion_id = p.createMultiBody(
-		baseMass = 0,
-		baseCollisionShapeIndex = portion_collision,
-		baseVisualShapeIndex = portion_visual,
-		basePosition = [center_x, lateral_offset, center_z],
-		baseOrientation = orientation_quaternion,
-	)
-
-	p.changeDynamics(
-		portion_id,
-		-1,
-		contactStiffness = 1_000,
-		contactDamping = 5,
-	)
 
 def update_camera(car_position, yaw, dt):
 	global camera_rotation_angle
@@ -329,48 +160,6 @@ def update_camera(car_position, yaw, dt):
 			cameraPitch = camera_pitch,
 			cameraTargetPosition = car_position,
 		)
-		return
-
-	if CAMERA_TYPE == "KEYBOARD_CONTROLLED":
-		keys = p.getKeyboardEvents()
-
-		def was_triggered(key_code):
-			return keys.get(key_code, 0) & p.KEY_WAS_TRIGGERED
-
-		translation_step = 100.0
-		updated_target_position = list(camera_keyboard_target_position)
-		should_update_camera = not camera_keyboard_initialized
-
-		if was_triggered(ord("p")):
-			updated_target_position[0] -= translation_step
-			should_update_camera = True
-		if was_triggered(ord("m")):
-			updated_target_position[0] += translation_step
-			should_update_camera = True
-
-		if was_triggered(ord("l")):
-			updated_target_position[1] -= translation_step
-			should_update_camera = True
-		if was_triggered(ord("o")):
-			updated_target_position[1] += translation_step
-			should_update_camera = True
-
-		if was_triggered(ord("i")):
-			updated_target_position[2] += translation_step
-			should_update_camera = True
-		if was_triggered(ord("k")):
-			updated_target_position[2] -= translation_step
-			should_update_camera = True
-
-		if should_update_camera:
-			camera_keyboard_target_position = updated_target_position
-			p.resetDebugVisualizerCamera(
-				cameraDistance = camera_keyboard_distance,
-				cameraYaw = camera_keyboard_yaw,
-				cameraPitch = camera_keyboard_pitch,
-				cameraTargetPosition = camera_keyboard_target_position,
-			)
-			camera_keyboard_initialized = True
 		return
 
 	if CAMERA_TYPE != "FOLLOW_CAR":
