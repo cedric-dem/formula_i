@@ -66,17 +66,20 @@ def initialize_simulation():
 		)
 
 def setup_obj_model():
+	p.setAdditionalSearchPath(FOLDER_OBJ_FILES)
+	mesh_path = gp_name + ".obj"
+
 	visual = p.createVisualShape(
 		shapeType = p.GEOM_MESH,
-		fileName = "result.obj",
+		fileName = mesh_path,
 		meshScale = [1, 1, 1],
 		rgbaColor = list(ROAD_COLOR) + [1],
 	)
 
 	collision = p.createCollisionShape(
 		shapeType = p.GEOM_MESH,
-		fileName = "result.obj",
-		flags = p.GEOM_FORCE_CONCAVE_TRIMESH  # OK pour objets fixes seulement
+		fileName = mesh_path,
+		flags = p.GEOM_FORCE_CONCAVE_TRIMESH
 	)
 	body = p.createMultiBody(
 		baseMass = 0,  # 0 => statique
