@@ -376,33 +376,19 @@ def get_resized_model(model):
 
 	return model
 
-def get_cubes_scene_not_adapted(track_layout_markers):  # cubes not adapted : red
-	cube_size = 7
-	cube_height = 100
-	proportion_to_show = 0.01
-	cubes_list = []
-	for current_marker_index in range(len(track_layout_markers)):
-		if isinstance(track_layout_markers[current_marker_index][2], str) and track_layout_markers[current_marker_index][2].startswith("?"):
-			if random.random() < proportion_to_show:
-				this_position = [track_layout_markers[current_marker_index][1], cube_height, track_layout_markers[current_marker_index][3]]
-				new_cube = create_cube([cube_size, cube_size, cube_size], [1, 0, 0], this_position)
-				cubes_list.append(new_cube)
-	return cubes_list
-
 def get_cubes_scene_adapted(track_layout_markers):  # cubes adapted : green
 	cube_size = 1
-	proportion_to_show = 0.08
 	cubes_list = []
 	for current_marker_index in range(len(track_layout_markers)):
-		if 9000 < current_marker_index < 11000:
-			if not (isinstance(track_layout_markers[current_marker_index][2], str) and track_layout_markers[current_marker_index][2].startswith("?")):
-				# color = [0, 1, 0]
-				proportion = current_marker_index / len(track_layout_markers)
-				color = [0, proportion, 1 - proportion]
+		# if 9000 < current_marker_index < 11000:
+		if current_marker_index % 20 == 0:
+			# color = [0, 1, 0]
+			proportion = current_marker_index / len(track_layout_markers)
+			color = [0, proportion, 1 - proportion]
 
-				this_position = [track_layout_markers[current_marker_index][1], float(track_layout_markers[current_marker_index][2]), track_layout_markers[current_marker_index][3]]
-				new_cube = create_cube([cube_size, cube_size, cube_size], color, this_position)
-				cubes_list.append(new_cube)
+			this_position = [track_layout_markers[current_marker_index][1], float(track_layout_markers[current_marker_index][2]), track_layout_markers[current_marker_index][3]]
+			new_cube = create_cube([cube_size, cube_size, cube_size], color, this_position)
+			cubes_list.append(new_cube)
 	return cubes_list
 
 def get_border_scene_cube_markers():  # markers border scene  : blue
@@ -421,7 +407,7 @@ def get_border_scene_cube_markers():  # markers border scene  : blue
 	]
 
 def display_result_in_3d_window(model, track_layout_markers):
-	scene_cubes = get_cubes_scene_not_adapted(track_layout_markers) + get_cubes_scene_adapted(track_layout_markers) + get_border_scene_cube_markers()
+	scene_cubes = get_cubes_scene_adapted(track_layout_markers) + get_border_scene_cube_markers()
 
 	try:
 		app = o3d.visualization.gui.Application.instance
