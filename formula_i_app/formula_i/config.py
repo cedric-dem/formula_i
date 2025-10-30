@@ -1,6 +1,6 @@
 ################################## Global config
 
-CAMERA_TYPE = "ROTATE_AROUND_CAR"  # Options: "FIXED", "FOLLOW_CAR", "ROTATE_AROUND_CAR"
+CAMERA_TYPE = "FOLLOW_CAR"  # Options: "FIXED", "FOLLOW_CAR", "ROTATE_AROUND_CAR"
 MOVE_DECISION = "KEYBOARD"  # Options: "DEFAULT", "AI", "KEYBOARD"
 SIMPLIFIED_MODEL = False
 DISPLAY_DATA = "ON_TERMINAL"  # Options : "ON_GUI", "ON_TERMINAL", "NO"

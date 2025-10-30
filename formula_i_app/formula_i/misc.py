@@ -139,7 +139,7 @@ def update_camera(car_position, yaw, dt):
 	follow_distance = 5.0
 	follow_height = 2.0
 	camera_distance = math.sqrt(follow_distance ** 2 + follow_height ** 2)
-	camera_yaw = math.degrees(yaw) - 70
+	camera_yaw = math.degrees(yaw) - 90
 	camera_pitch = -math.degrees(math.atan2(follow_height, follow_distance))
 	p.resetDebugVisualizerCamera(
 		cameraDistance = camera_distance,
