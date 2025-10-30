@@ -8,17 +8,7 @@ gp_index = 13  # 13
 ## global
 HALF_SIZE = 2500
 
-## script 1
-SHOW_TRAIL_BFS_STATE_EVERY = 500
-STOP_EXPLORATION_LAYOUT_PATH_EARLY = None  # stop loop after that many steps (or none to go until the end)
-
-## script 2
-ADAPT_QUANTITY_PER_BATCH = 1000
-
-## script 3
-
-## script 4
-
+PRINT_STATUS_EVERY = 500
 
 ################
 
@@ -40,7 +30,7 @@ image_layout_path = "f1_tracks/img_layout_resized/" + gp_name + ".jpg"
 
 RAW_LAYOUT_CSV_FILE = "f1_tracks/layout_csv_files/" + gp_name + ".csv"
 SMOOTHEN_LAYOUT_CSV_FILE = "f1_tracks/layout_smoothen_csv_files/" + gp_name + ".csv"
-OUTPUT_GLB_FILE = "f1_tracks/output_glb_layout/" + gp_name + ".glb"
+OUTPUT_GLB_FILE = "temp.glb"  # "f1_tracks/output_glb_layout/" + gp_name + ".glb"
 OUTPUT_OBJ_FILE = "f1_tracks/output_obj_layout/" + gp_name + ".obj"
 
 ################
