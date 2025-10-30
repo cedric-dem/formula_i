@@ -8,7 +8,7 @@ gp_index = 13  # 13
 ## global
 HALF_SIZE = 2500
 
-PRINT_STATUS_EVERY = 500
+PRINT_STATUS_EVERY = 1000
 
 #smoothen
 SLIDING_WINDOW_RADIUS = 350
@@ -32,9 +32,8 @@ path_str = "f1_tracks/" + model_type + "/" + gp_name + ".glb"
 # image_layout_path = "f1_tracks/img_layout/" + gp_name + ".jpg"
 image_layout_path = "f1_tracks/img_layout_resized/" + gp_name + ".jpg"
 
-RAW_LAYOUT_CSV_FILE = "f1_tracks/layout_csv_files/" + gp_name + ".csv"
 SMOOTHEN_LAYOUT_CSV_FILE = "f1_tracks/layout_smoothen_csv_files/" + gp_name + ".csv"
-OUTPUT_GLB_FILE = "temp.glb"  # "f1_tracks/output_glb_layout/" + gp_name + ".glb"
+TEMP_GLB_FILE = "temp.glb"  # "f1_tracks/output_glb_layout/" + gp_name + ".glb"
 OUTPUT_OBJ_FILE = "f1_tracks/output_obj_layout/" + gp_name + ".obj"
 
 ################

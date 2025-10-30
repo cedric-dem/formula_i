@@ -15,13 +15,12 @@ from .config import *
 
 random.seed(123456)
 
-def create_csv_layout_file():
+def get_layout_matrix():
 	t0 = time.time()
 	trackers_information = create_markers_list()
 	t1 = time.time()
-	print('==> time taken', round(t1 - t0, 2))
-
-	in_csv_file(trackers_information, RAW_LAYOUT_CSV_FILE)
+	print('==> finished get layout information. time taken', round(t1 - t0, 2))
+	return trackers_information
 
 def in_csv_file(data, filename):
 	with open(filename, mode = 'w', newline = '', encoding = 'utf-8') as file:
@@ -56,7 +55,6 @@ def get_model():
 		print("Error: failed to load model (unsupported/corrupted GLB).")
 		sys.exit(1)
 
-	print('==> finished reading model, resizing it')
 	return get_resized_model(model)
 
 def create_markers_list():
@@ -71,43 +69,33 @@ def create_markers_list():
 	pixels = img.load()
 
 	start, end = detect_start_and_end_point(width, pixels)
-	print("==> start,end", start, end)
+	print("==> detected start and end", start, end)
 
 	matrix_presence = get_trail_shape(width, pixels)
-	print('==> got matrix presence')
+	print('==> finished retrieved matrix presence')
 
-	print("==> beginning merge")
+	print("==> beginning merge in order")
 	resulting_layout = merge_start_trail_end(start, matrix_presence, end)
 
 	print("==> start trail: ", resulting_layout[:10])
 	print("==> mid point: ", resulting_layout[len(resulting_layout) // 2])
 	print("==> end trail: ", resulting_layout[-10:])
-	print("==> Final result layout size : ", len(resulting_layout))  # , ": ", resulting_layout)
+	print("==> Final result layout size : ", len(resulting_layout))
 
 	return resulting_layout
 
-def adapt_markers_to_model():
+def adapt_markers_to_model(trackers_information):
+	t0 = time.time()
 	model = get_model()
 
 	triangles_set = get_list_of_triangles(model)
-	print("==> triangles qty", len(triangles_set))
+	print("==> triangles quantity", len(triangles_set))
 
-	current_layout_markers_adapted = read_layout_file(RAW_LAYOUT_CSV_FILE)
-	print('==> finish read')
-
-	continue_exploration = True
-	current_loop = 0
-	total = len(current_layout_markers_adapted)
-	remaining = count_remaining(current_layout_markers_adapted)
-	t0 = time.time()
-
-	augment_layout_markers_using_triangles_list(current_layout_markers_adapted, triangles_set)
+	augment_layout_markers_using_triangles_list(trackers_information, triangles_set)
 
 	t1 = time.time()
-	print('=====> Finsoihed : took ', round(t1 - t0, 2))
-	print('==> Finished exploration, writing result')
-	# write in csv file
-	in_csv_file(current_layout_markers_adapted, RAW_LAYOUT_CSV_FILE)
+	print('==> finished adapt markers to model time taken', round(t1 - t0, 2))
+	return trackers_information
 
 def count_remaining(current_trackers):
 	count = 0
@@ -178,10 +166,10 @@ def merge_start_trail_end(start, trail_composition, end):
 			if (next_coord not in pixels_list_next) and (not matrix_exploration_state[next_coord[0]][next_coord[1]]) and (trail_composition[next_coord[0]][next_coord[1]]):
 				pixels_list_next.append(next_coord)
 
-		current_index += 1
-
 		if current_index % PRINT_STATUS_EVERY == 0:
 			print('====> Current index :', current_index)
+
+		current_index += 1
 
 	return get_formatted_layout_file_content(start, explored_pixels_list_history, end)
 
@@ -201,20 +189,18 @@ def augment_layout_markers_using_triangles_list(current_adapted_track_layout, tr
 	current_index = 0
 
 	t0 = time.time()
-	previous_index = 0
-	while not current_index >= len(current_adapted_track_layout):
+	previous_triangle_index = 0
+	while current_index < len(current_adapted_track_layout):
 
-		if isinstance(current_adapted_track_layout[current_index][2], str) and current_adapted_track_layout[current_index][2].startswith("?"):
-			# adapt that one
-			previous_index, current_adapted_track_layout[current_index][2] = get_adapted_height_of_marker(current_adapted_track_layout[current_index], triangles_set, previous_index)
-
-		current_index += 1
+		previous_triangle_index, current_adapted_track_layout[current_index][2] = get_adapted_height_of_marker(current_adapted_track_layout[current_index], triangles_set, previous_triangle_index)
 
 		if current_index % PRINT_STATUS_EVERY == 0:
 			t1 = time.time()
 			remaining = count_remaining(current_adapted_track_layout)
 			print('====> Current index :', current_index, " remaining : ", remaining, ". time taken for those last ", PRINT_STATUS_EVERY, ": ", round(t1 - t0, 2))
 			t0 = t1
+
+		current_index += 1
 
 def get_adapted_height_of_marker(marker_to_adapt, triangles_set, previous_index):
 	intersecting_triangle_index = get_index_of_intersecting_triangle(marker_to_adapt, triangles_set, previous_index)
@@ -431,19 +417,18 @@ def summarize_result_in_terminal(model, track_layout_markers):
 	min_z = max_z
 
 	for track_layout_marker in track_layout_markers:
-		if not track_layout_marker[2].startswith("?"):
-			current_x = float(track_layout_marker[1])
-			current_y = float(track_layout_marker[2])
-			current_z = float(track_layout_marker[3])
+		current_x = float(track_layout_marker[1])
+		current_y = float(track_layout_marker[2])
+		current_z = float(track_layout_marker[3])
 
-			max_x = max(max_x, current_x)
-			min_x = min(min_x, current_x)
+		max_x = max(max_x, current_x)
+		min_x = min(min_x, current_x)
 
-			max_y = max(max_y, current_y)
-			min_y = min(min_y, current_y)
+		max_y = max(max_y, current_y)
+		min_y = min(min_y, current_y)
 
-			max_z = max(max_z, current_z)
-			min_z = min(min_z, current_z)
+		max_z = max(max_z, current_z)
+		min_z = min(min_z, current_z)
 
 	print("==> x from ", min_x, " to ", max_x)
 	print("==> lowest point : ", min_y, " highest point : ", max_y)
@@ -465,17 +450,17 @@ def sliding_window_mean(data):
 			result.append(round(median(window), 3))
 	return result
 
-def smoothen_result():
-	print("==> Start smoothen")
-	layout_content = read_layout_file(RAW_LAYOUT_CSV_FILE)
+def smoothen_result(layout_content):
+	t0 = time.time()
 	heights = [float(elem[2]) for elem in layout_content]
 	new_heights = sliding_window_mean(heights)
 
-	print("==> finished")
 	for current_index in range(len(new_heights)):
 		layout_content[current_index][2] = new_heights[current_index]
 
-	in_csv_file(layout_content, SMOOTHEN_LAYOUT_CSV_FILE)
+	t1 = time.time()
+	print('==> finished smoothen result. time taken', round(t1 - t0, 2))
+	return layout_content
 
 def get_map_as_matrix(markers_list):
 	top_map_as_matrix = [[None for _ in range(5000)] for _ in range(5000)]
@@ -485,8 +470,9 @@ def get_map_as_matrix(markers_list):
 
 	return top_map_as_matrix
 
-def convert_to_final_obj_model():
-	markers_list = read_layout_file(SMOOTHEN_LAYOUT_CSV_FILE)
+def convert_to_final_obj_model(markers_list):
+	t0 = time.time()
+
 	top_map_as_matrix = get_map_as_matrix(markers_list)
 
 	triangles_list = get_triangles_list_from_matrix(top_map_as_matrix)
@@ -500,8 +486,11 @@ def convert_to_final_obj_model():
 	print('==> removing glb file')
 	remove_glb_file()
 
+	t1 = time.time()
+	print('==> finished convert to obj model. time taken', round(t1 - t0, 2))
+
 def remove_glb_file():
-	os.remove(OUTPUT_GLB_FILE)
+	os.remove(TEMP_GLB_FILE)
 
 def get_triangles_list_from_matrix(top_map_as_matrix):
 	triangles_list = []
@@ -620,15 +609,15 @@ def triangles_to_glb(triangles):
 	vert_map = {}
 	vertices = []
 	faces = []
-	for tri in triangles:
-		idxs = []
-		for p in tri:
-			key = (float(p[0]), float(p[1]), float(p[2]))
+	for triangle in triangles:
+		indexes = []
+		for point in triangle:
+			key = (float(point[0]), float(point[1]), float(point[2]))
 			if key not in vert_map:
 				vert_map[key] = len(vertices)
 				vertices.append(key)
-			idxs.append(vert_map[key])
-		faces.append(idxs)
+			indexes.append(vert_map[key])
+		faces.append(indexes)
 
 	vertices = np.asarray(vertices, dtype = np.float64)
 	faces = np.asarray(faces, dtype = np.int32)
@@ -645,7 +634,7 @@ def triangles_to_glb(triangles):
 	mesh.vertex_colors = o3d.utility.Vector3dVector(np.tile(np.array([[gray, gray, gray]], dtype = np.float64), (len(vertices), 1)))
 
 	ok = o3d.io.write_triangle_mesh(
-		OUTPUT_GLB_FILE, mesh,
+		TEMP_GLB_FILE, mesh,
 		write_vertex_normals = True,
 		write_vertex_colors = True,
 		print_progress = False
@@ -654,5 +643,21 @@ def triangles_to_glb(triangles):
 		raise RuntimeError("error")
 
 def convert_glb_to_obj():
-	mesh = trimesh.load(OUTPUT_GLB_FILE, force = 'mesh')
+	mesh = trimesh.load(TEMP_GLB_FILE, force = 'mesh')
 	mesh.export(OUTPUT_OBJ_FILE)
+
+def create_obj_track_file():
+	print('////////////////////////////////////////////////////////// get layout information ///')
+	unadapted_layout = get_layout_matrix()
+
+	print('////////////////////////////////////////////////////////// Adapt markers to model ///')
+	adapted_layout = adapt_markers_to_model(unadapted_layout)
+
+	print('////////////////////////////////////////////////////////// Smoothen Result ///')
+	smoothened_layout = smoothen_result(adapted_layout)
+
+	print('////////////////////////////////////////////////////////// SAVE CSV FILE ///')
+	in_csv_file(smoothened_layout, SMOOTHEN_LAYOUT_CSV_FILE)  # no real need for that, in fact i could delete both read and write function
+
+	print('////////////////////////////////////////////////////////// Convert to final obj model ///')
+	convert_to_final_obj_model(unadapted_layout)
