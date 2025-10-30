@@ -6,12 +6,6 @@ import pybullet as p
 
 from .config import *
 
-camera_keyboard_yaw = 60.0
-camera_keyboard_distance = 1.0
-camera_keyboard_pitch = -30.0
-camera_keyboard_target_position = [100.0, 100.0, 100.0]
-camera_keyboard_initialized = False
-
 def get_next_move():
 	"""Return the steering, brake and throttle values for the next step."""
 	if MOVE_DECISION == "DEFAULT":
@@ -54,18 +48,8 @@ def clamp(value, minimum, maximum):
 	return max(minimum, min(maximum, value))
 
 def initialize_simulation():
-	global camera_keyboard_distance
-	global camera_keyboard_initialized
-	global camera_keyboard_pitch
-	global camera_keyboard_target_position
-	global camera_keyboard_yaw
-
-	camera_keyboard_yaw = 60.0
-	camera_keyboard_distance = 1.0
-	camera_keyboard_pitch = -30.0
-	camera_keyboard_target_position = [100.0, 100.0, 100.0]
-	camera_keyboard_initialized = False
-
+	global camera_rotation_angle
+	camera_rotation_angle = 0
 	p.connect(p.GUI, options = '--background_color_red=' + str(SKY_COLOR[0]) + ' --background_color_green=' + str(SKY_COLOR[1]) + ' --background_color_blue=' + str(SKY_COLOR[2]))
 	p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
 	p.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, 0)
@@ -80,14 +64,6 @@ def initialize_simulation():
 			cameraPitch = -30,
 			cameraTargetPosition = [100, 100, 100],
 		)
-	elif CAMERA_TYPE == "KEYBOARD_CONTROLLED":
-		p.resetDebugVisualizerCamera(
-			cameraDistance = camera_keyboard_distance,
-			cameraYaw = camera_keyboard_yaw,
-			cameraPitch = camera_keyboard_pitch,
-			cameraTargetPosition = camera_keyboard_target_position,
-		)
-		camera_keyboard_initialized = True
 
 def setup_obj_model():
 	visual = p.createVisualShape(
@@ -134,15 +110,10 @@ def setup_environment():
 				basePosition = random_position,
 			)
 
+global camera_rotation_angle
 
 def update_camera(car_position, yaw, dt):
 	global camera_rotation_angle
-	global camera_keyboard_distance
-	global camera_keyboard_initialized
-	global camera_keyboard_pitch
-	global camera_keyboard_target_position
-	global camera_keyboard_yaw
-
 	if CAMERA_TYPE == "ROTATE_AROUND_CAR":
 		angular_speed = math.radians(30.0)
 		camera_rotation_angle = (camera_rotation_angle + angular_speed * dt) % (
