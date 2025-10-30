@@ -2,6 +2,7 @@ from pathlib import Path
 from PIL import Image
 from statistics import median, mean
 
+import trimesh
 import numpy as np
 import open3d as o3d
 import random
@@ -635,3 +636,7 @@ def triangles_to_glb(triangles):
 	)
 	if not ok:
 		raise RuntimeError("error")
+
+def convert_model_to_obj():
+	mesh = trimesh.load(OUTPUT_GLB_FILE, force = 'mesh')
+	mesh.export(OUTPUT_OBJ_FILE)
