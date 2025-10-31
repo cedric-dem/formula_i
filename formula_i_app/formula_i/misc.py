@@ -100,7 +100,7 @@ def setup_obj_model():
 	)
 
 def setup_environment():
-	p.setGravity(0, 0, -9.81)
+	p.setGravity(0, 0, -GRAV)
 
 	setup_obj_model()
 

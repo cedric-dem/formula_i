@@ -330,19 +330,44 @@ class Car:
 		car_orientation = p.getQuaternionFromEuler([roll, pitch, self.current_angle])
 		p.resetBasePositionAndOrientation(self.body_id, car_position, car_orientation)
 
-		forward_vector = [
+		planar_forward_vector = [
 			math.cos(self.current_angle),
 			math.sin(self.current_angle),
 			0.0,
 		]
 
 		if current_timestamp % REFRESH_SENSORS_EVERY_FRAME == 0:
-			self._update_sensors(car_position, forward_vector)
+			self._update_sensors(car_position, planar_forward_vector)
+
+		orientation_matrix = p.getMatrixFromQuaternion(car_orientation)
+		vehicle_forward_vector = [
+			orientation_matrix[0],
+			orientation_matrix[3],
+			orientation_matrix[6],
+		]
+
+		gravity_vector = [0, 0, -GRAV]
+		gravity_along_forward = sum(
+			gravity_component * forward_component
+			for gravity_component, forward_component in zip(gravity_vector, vehicle_forward_vector)
+		)
+		self.current_speed_ms = max(
+			min(self.current_speed_ms + gravity_along_forward * dt, MAX_SPEED_MPS),
+			0.0,
+		)
+
+		current_speed_along_forward = sum(
+			current_linear_velocity[i] * vehicle_forward_vector[i] for i in range(3)
+		)
+		residual_velocity = [
+			current_linear_velocity[i]
+			- current_speed_along_forward * vehicle_forward_vector[i]
+			for i in range(3)
+		]
 
 		linear_velocity = [
-			forward_vector[0] * self.current_speed_ms,
-			forward_vector[1] * self.current_speed_ms,
-			current_linear_velocity[2],
+			vehicle_forward_vector[i] * self.current_speed_ms + residual_velocity[i]
+			for i in range(3)
 		]
 		p.resetBaseVelocity(
 			self.body_id,
