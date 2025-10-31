@@ -94,9 +94,21 @@ class Car:
 			linkJointAxis = link_joint_axes,
 		)
 
-		p.changeDynamics(car_body, -1, lateralFriction = 1.0)
+		p.changeDynamics(
+			car_body,
+			-1,
+			lateralFriction = 1.0,
+			contactStiffness = CAR_CONTACT_STIFFNESS,
+			contactDamping = CAR_CONTACT_DAMPING,
+		)
 		for link_index in range(p.getNumJoints(car_body)):
-			p.changeDynamics(car_body, link_index, lateralFriction = 1.0)
+			p.changeDynamics(
+				car_body,
+				link_index,
+				lateralFriction = 1.0,
+				contactStiffness = CAR_CONTACT_STIFFNESS,
+				contactDamping = CAR_CONTACT_DAMPING,
+			)
 
 		for joint_index in range(2):
 			p.setJointMotorControl2(
