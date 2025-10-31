@@ -77,19 +77,27 @@ def setup_obj_model():
 	)
 
 	collision = p.createCollisionShape(
-		shapeType = p.GEOM_MESH,
-		fileName = mesh_path,
-		flags = p.GEOM_FORCE_CONCAVE_TRIMESH
+			shapeType = p.GEOM_MESH,
+			fileName = mesh_path,
+			meshScale = [1, 1, 1],
+			flags = p.GEOM_FORCE_CONCAVE_TRIMESH | p.GEOM_CONCAVE_INTERNAL_EDGE,
 	)
 	body = p.createMultiBody(
-		baseMass = 0,  # 0 => statique
-		baseCollisionShapeIndex = collision,
-		baseVisualShapeIndex = visual,
-		basePosition = [0, 0, 0.1],
-		# baseOrientation = p.getQuaternionFromEuler([-math.pi/2,0,  0.0])
-		baseOrientation = p.getQuaternionFromEuler([math.pi / 2, 0, 0.0])
+			baseMass = 0,  # 0 => statique
+			baseCollisionShapeIndex = collision,
+			baseVisualShapeIndex = visual,
+			basePosition = [0, 0, 0.1],
+			# baseOrientation = p.getQuaternionFromEuler([-math.pi/2,0,  0.0])
+			baseOrientation = p.getQuaternionFromEuler([math.pi / 2, 0, 0.0])
 	)
 
+	p.changeDynamics(
+			body,
+			-1,
+			lateralFriction = 1.0,
+			contactStiffness = GROUND_CONTACT_STIFFNESS,
+			contactDamping = GROUND_CONTACT_DAMPING,
+	)
 def setup_environment():
 	p.setGravity(0, 0, -9.81)
 

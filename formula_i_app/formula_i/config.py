@@ -52,3 +52,12 @@ FOLDER_OBJ_FILES = "f1_tracks/obj_files"
 ################################### initialize
 
 camera_rotation_angle = 0.0
+
+################################### terrain
+
+GROUND_COLLISION_MARGIN = 0.0
+GROUND_CONTACT_STIFFNESS = 3000.0
+GROUND_CONTACT_DAMPING = 300.0
+
+CAR_CONTACT_STIFFNESS = 3000.0
+CAR_CONTACT_DAMPING = 300.0
