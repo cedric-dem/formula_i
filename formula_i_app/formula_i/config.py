@@ -7,7 +7,7 @@ DISPLAY_DATA = "ON_TERMINAL"  # Options : "ON_GUI", "ON_TERMINAL", "NO"
 REFRESH_EVERY_FRAME = 240
 ADD_DEBUG_CUBES = False
 REFRESH_SENSORS_EVERY_FRAME = 3
-DISPLAY_SENSORS = False
+DISPLAY_SENSORS = True
 
 ################################### Car Behaviour
 
@@ -19,6 +19,8 @@ CAR_INITIAL_POSITION = (-430, 1084, 106)  # (-420,1066,163) (135,-199,149) 150,-
 INITIAL_ANGLE_OF_CAR = 120
 
 GRAV = 15
+
+HALF_MAP_SIZE = 2500
 
 ################################### Look
 
@@ -50,6 +52,9 @@ gp_name = [
 ][gp_index - 1]
 
 FOLDER_OBJ_FILES = "f1_tracks/obj_files"
+FOLDER_CSV_FILES = "f1_tracks/csv_files"
+
+TRACK_LAYOUT_CSV_FILE = FOLDER_CSV_FILES + "/" + gp_name + ".csv"
 
 ################################### initialize
 

@@ -15,6 +15,7 @@ class Car:
 		self._identity_orientation = p.getQuaternionFromEuler([0, 0, 0])
 		self.sensors = self._initialize_sensors()
 		self.sensor_distance = self.sensor_max_distance
+		self.track_limits = get_track_layout_as_matrix()
 
 	def apply_steering(self, steering_input):
 		MAX_STEERING_ANGLE = 10.0  # only for visual
@@ -398,7 +399,7 @@ class Car:
 				0.0,
 			]
 
-			detected_distance, detected_point = self._cast_sensor(sensor_origin, direction)
+			detected_distance, detected_point = self.get_detected_distance(sensor_origin, direction)
 			sensor["distance"] = detected_distance
 
 			if sensor["name"] == "front":
@@ -422,6 +423,15 @@ class Car:
 				)
 
 		self.sensor_distance = front_distance
+
+	def get_detected_distance(self, sensor_origin, direction):
+		# sensor origin : x,y,z float
+		# sensor direction : list 3 float
+
+		# return self._cast_sensor(sensor_origin, direction)
+		# return 10, [sensor_origin[0] + 6, sensor_origin[1] + 6, sensor_origin[2]]
+		new_point = self.point_in_that_direction(sensor_origin, direction)
+		return get_distance(new_point, sensor_origin), new_point
 
 	def _cast_sensor(self, sensor_origin, direction):
 		detected_distance = self.sensor_max_distance
@@ -452,3 +462,46 @@ class Car:
 			]
 
 		return detected_distance, detected_point
+
+	def point_in_that_direction(self, starting_coord, direction):
+		min_distance = 1
+		max_distance = 30
+
+		dx, dy, dz = direction
+
+		norm = math.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
+		if norm == 0:
+			raise ValueError("cant be null.")
+
+		dx /= norm
+		dy /= norm
+		dz /= norm
+
+		new_point = [0, 0]
+		current_distance = min_distance
+		continue_forward = True
+		while current_distance < max_distance and continue_forward:  # or else could just add dx and dy to new_point as step is 1
+			# could be optimized by taking the last distance, and going +1, -1, +2, -2 etc
+			new_point = [
+				starting_coord[0] + dx * current_distance,
+				starting_coord[1] + dy * current_distance
+			]
+			# last point is coord[2] + dz * current_distance byt don't need z axis here, just 2d projection
+
+			continue_forward = self.get_layout_state_at_point(new_point)
+			# print("==> pt,",new_point)
+
+			# current_distance is slightly too far now, but -1 was too far before hitting track layout border, so for now add correction of -0.5
+			# maybe -1 is better ?
+			if not continue_forward:
+				new_point = [
+					starting_coord[0] + dx * (current_distance - 0.5),
+					starting_coord[1] + dy * (current_distance - 0.5)
+				]
+			else:
+				current_distance = current_distance + 1
+		return new_point + [starting_coord[2]]  # just for debug show correct height
+
+	def get_layout_state_at_point(self, point):
+		# todo discover why the minus point[1] is necessary, guess its related to the handling of xyz axes
+		return self.track_limits[int(point[0]) + HALF_MAP_SIZE][-int(point[1]) + HALF_MAP_SIZE]

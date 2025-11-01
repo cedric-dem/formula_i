@@ -1,7 +1,7 @@
 import math
 import time
 import random
-
+import csv
 import pybullet as p
 
 from .config import *
@@ -239,3 +239,34 @@ def run_simulation(car):
 
 		p.stepSimulation()
 		time.sleep(dt)
+
+def get_track_layout_as_matrix():
+	layout = [[False for i in range(HALF_MAP_SIZE * 2)] for j in range(HALF_MAP_SIZE * 2)]
+	track_layout_elements = read_layout_file(TRACK_LAYOUT_CSV_FILE)
+
+	for track_layout_element in track_layout_elements:
+		layout[track_layout_element[1] + HALF_MAP_SIZE][track_layout_element[3] + HALF_MAP_SIZE] = True
+
+	return layout
+
+def read_layout_file(filename):
+	# this and get_track_layout_as_matrix is duplicated code from track_handler
+	resulting_layout = []
+	with open(filename, mode = 'r', newline = '', encoding = 'utf-8') as file:
+		reader = csv.reader(file)
+		for row in reader:
+			converted_row = []
+			for col_index, value in enumerate(row):
+				if col_index in (0, 2):
+					converted_row.append(value)
+				elif col_index in (1, 3):
+					converted_row.append(int(value))
+			resulting_layout.append(converted_row)
+	return resulting_layout
+
+def get_distance(point1, point2):
+	return math.sqrt(
+		(point2[0] - point1[0]) ** 2 +
+		(point2[1] - point1[1]) ** 2 +
+		(point2[2] - point1[2]) ** 2
+	)
