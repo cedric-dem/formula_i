@@ -399,7 +399,9 @@ class Car:
 				0.0,
 			]
 
-			detected_distance, detected_point = self.get_detected_distance(sensor_origin, direction)
+			detected_point = self.point_in_that_direction(sensor_origin, direction)
+			detected_distance = get_distance(detected_point, sensor_origin)
+
 			sensor["distance"] = detected_distance
 
 			if sensor["name"] == "front":
@@ -423,15 +425,6 @@ class Car:
 				)
 
 		self.sensor_distance = front_distance
-
-	def get_detected_distance(self, sensor_origin, direction):
-		# sensor origin : x,y,z float
-		# sensor direction : list 3 float
-
-		# return self._cast_sensor(sensor_origin, direction)
-		# return 10, [sensor_origin[0] + 6, sensor_origin[1] + 6, sensor_origin[2]]
-		new_point = self.point_in_that_direction(sensor_origin, direction)
-		return get_distance(new_point, sensor_origin), new_point
 
 	def _cast_sensor(self, sensor_origin, direction):
 		detected_distance = self.sensor_max_distance
