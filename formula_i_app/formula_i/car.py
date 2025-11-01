@@ -141,10 +141,14 @@ class Car:
 	def _initialize_sensors(self):
 		sensor_definitions = [
 			("front", 0.0),
-			("front_left_20", 20.0),
-			("front_left_40", 40.0),
-			("front_right_20", -20.0),
-			("front_right_40", -40.0),
+			("front_left_15", 15.0),
+			("front_left_30", 30.0),
+			("front_left_45", 45.0),
+			("front_left_60", 60.0),
+			("front_right_15", -15.0),
+			("front_right_30", -30.0),
+			("front_right_45", -45.0),
+			("front_right_60", -60.0),
 		]
 
 		sensors = []
