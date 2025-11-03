@@ -11,10 +11,8 @@ class Car:
 		_, _, self.current_angle = p.getEulerFromQuaternion(orientation)
 		self.current_steering = 0.0
 		self.total_distance_traveled = 0.0
-		self.sensor_max_distance = 20.0
 		self._identity_orientation = p.getQuaternionFromEuler([0, 0, 0])
 		self.sensors = self._initialize_sensors()
-		self.sensor_distance = self.sensor_max_distance
 		self.track_limits = get_track_layout_as_matrix()
 
 	def apply_steering(self, steering_input):
@@ -148,7 +146,7 @@ class Car:
 		return {
 			"name": self._sensor_name(angle_deg),
 			"angle_offset": math.radians(angle_deg),
-			"distance": self.sensor_max_distance,
+			"distance": (MAX_SENSOR_DISTANCE + MIN_SENSOR_DISTANCE) / 2,
 			"marker_id": self._create_sensor_marker() if DISPLAY_SENSORS else None,
 		}
 
@@ -412,8 +410,6 @@ class Car:
 			car_position[2] + sensor_height_offset,
 		]
 
-		front_distance = self.sensor_max_distance
-
 		for sensor in self.sensors:
 			direction = [
 				math.cos(self.current_angle + sensor["angle_offset"]),
@@ -421,7 +417,7 @@ class Car:
 				0.0,
 			]
 
-			detected_point = self.point_in_that_direction(sensor_origin, direction)
+			detected_point = self.point_in_that_direction(sensor_origin, direction, sensor["distance"])
 			detected_distance = get_distance(detected_point, sensor_origin)
 
 			sensor["distance"] = detected_distance
@@ -446,39 +442,7 @@ class Car:
 					self._identity_orientation
 				)
 
-		self.sensor_distance = front_distance
-
-	def _cast_sensor(self, sensor_origin, direction):
-		detected_distance = self.sensor_max_distance
-		detected_point = None
-
-		for distance in range(1, int(self.sensor_max_distance) + 1):
-			ray_end = [
-				sensor_origin[0] + direction[0] * distance,
-				sensor_origin[1] + direction[1] * distance,
-				sensor_origin[2],
-			]
-
-			ray_result = p.rayTest(sensor_origin, ray_end)[0]
-			body_id, _, hit_fraction, hit_position, _ = ray_result
-
-			if body_id == -1 or body_id == self.body_id:
-				continue
-
-			detected_distance = hit_fraction * distance
-			detected_point = hit_position
-			break
-
-		if detected_point is None:
-			detected_point = [
-				sensor_origin[0] + direction[0] * detected_distance,
-				sensor_origin[1] + direction[1] * detected_distance,
-				sensor_origin[2],
-			]
-
-		return detected_distance, detected_point
-
-	def point_in_that_direction(self, starting_coord, direction):
+	def point_in_that_direction(self, starting_coord, direction, old_value):
 		dx, dy, dz = direction
 
 		norm = math.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
@@ -489,26 +453,46 @@ class Car:
 		dy /= norm
 		dz /= norm
 
-		current_distance = MIN_SENSOR_DISTANCE
-		new_point = [0.0, 0.0]
+		current_delta = 0
+		found = None
 
-		while current_distance < MAX_SENSOR_DISTANCE:
-			candidate_point = [
-				starting_coord[0] + dx * current_distance,
-				starting_coord[1] + dy * current_distance,
-			]
+		while ((old_value + current_delta <= MAX_SENSOR_DISTANCE) or (old_value - current_delta >= MIN_SENSOR_DISTANCE)) and (found is None):
 
-			if not self.get_layout_state_at_point(candidate_point):
-				new_point = [
-					starting_coord[0] + dx * (current_distance - 0.5),
-					starting_coord[1] + dy * (current_distance - 0.5),
-				]
-				break
+			for direction in [+1, -1]:
+				old_dst = old_value + direction * (current_delta - 1)
+				new_dst = old_value + direction * current_delta
 
-			new_point = candidate_point
-			current_distance += 1
+				old_point = [starting_coord[0] + dx * old_dst, starting_coord[1] + dy * old_dst]
+				new_point = [starting_coord[0] + dx * new_dst, starting_coord[1] + dy * new_dst]
 
-		return new_point + [starting_coord[2]]  # just for debug show correct height
+				old_state = self.get_layout_state_at_point(old_point)
+				new_state = self.get_layout_state_at_point(new_point)
+
+				if old_state != new_state:
+					found = new_point
+
+			current_delta += 1
+
+		if found is None:
+			# if first value is false
+			min_dist_point = [starting_coord[0] + dx * MAX_SENSOR_DISTANCE, starting_coord[1] + dy * MAX_SENSOR_DISTANCE]
+			min_dist_state = self.get_layout_state_at_point(min_dist_point)
+			if not min_dist_state:
+				found = min_dist_point
+
+			# could add else here for more optimization, put the code below in else
+
+			# if last value is true
+			max_dist_point = [starting_coord[0] + dx * MAX_SENSOR_DISTANCE, starting_coord[1] + dy * MAX_SENSOR_DISTANCE]
+			max_dist_state = self.get_layout_state_at_point(max_dist_point)
+			if max_dist_state:
+				found = max_dist_point
+
+			if found is None:
+				# found = [starting_coord[0], starting_coord[1]]  # to avoid crash ? not sure
+				raise ValueError("not found sensor")
+
+		return found + [starting_coord[2]]  # just for debug show correct height
 
 	def get_layout_state_at_point(self, point):
 		# todo discover why the minus point[1] is necessary, guess its related to the handling of xyz axes
