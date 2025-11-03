@@ -60,6 +60,12 @@ TRACK_LAYOUT_CSV_FILE = FOLDER_CSV_FILES + "/" + gp_name + ".csv"
 
 camera_rotation_angle = 0.0
 
+################################### sensors
+
+MIN_SENSOR_DISTANCE = 1
+MAX_SENSOR_DISTANCE = 30
+SENSORS_ANGLE_LIST = [-60, 60, -45, 45, -30, 30, -15, 15, 0]
+
 ################################### terrain
 
 GROUND_COLLISION_MARGIN = 0.0

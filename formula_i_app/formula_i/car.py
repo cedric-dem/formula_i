@@ -139,17 +139,17 @@ class Car:
 		return marker_id
 
 	def _initialize_sensors(self):
-		sensor_definitions = [
-			("front", 0.0),
-			("front_left_15", 15.0),
-			("front_left_30", 30.0),
-			("front_left_45", 45.0),
-			("front_left_60", 60.0),
-			("front_right_15", -15.0),
-			("front_right_30", -30.0),
-			("front_right_45", -45.0),
-			("front_right_60", -60.0),
-		]
+		sensor_definitions = []
+		for sensor_value in SENSORS_ANGLE_LIST:
+			if sensor_value == 0:
+				sensor_name = "front_" + str(sensor_value)
+			elif sensor_value > 0:
+				sensor_name = "front_left_" + str(sensor_value)
+			elif sensor_value < 0:
+				sensor_name = "front_right_" + str(sensor_value)
+			else:
+				sensor_name = ""
+			sensor_definitions.append((sensor_name, sensor_value))
 
 		sensors = []
 		for name, angle_deg in sensor_definitions:
@@ -461,9 +461,6 @@ class Car:
 		return detected_distance, detected_point
 
 	def point_in_that_direction(self, starting_coord, direction):
-		min_distance = 1
-		max_distance = 30
-
 		dx, dy, dz = direction
 
 		norm = math.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
@@ -475,9 +472,9 @@ class Car:
 		dz /= norm
 
 		new_point = [0, 0]
-		current_distance = min_distance
+		current_distance = MIN_SENSOR_DISTANCE
 		continue_forward = True
-		while current_distance < max_distance and continue_forward:  # or else could just add dx and dy to new_point as step is 1
+		while current_distance < MAX_SENSOR_DISTANCE and continue_forward:  # or else could just add dx and dy to new_point as step is 1
 			# could be optimized by taking the last distance, and going +1, -1, +2, -2 etc
 			new_point = [
 				starting_coord[0] + dx * current_distance,
