@@ -23,14 +23,17 @@ class Car:
 		self.current_steering = steering_angle
 
 		for joint_index in (0, 1):
-			p.resetJointState(self.body_id, joint_index, steering_angle)
-			p.setJointMotorControl2(
-				self.body_id,
-				joint_index,
-				controlMode = p.POSITION_CONTROL,
-				targetPosition = steering_angle,
-				force = 100,
-			)
+			self._update_wheel_joint(joint_index, steering_angle)
+
+	def _update_wheel_joint(self, joint_index, steering_angle):
+		p.resetJointState(self.body_id, joint_index, steering_angle)
+		p.setJointMotorControl2(
+			self.body_id,
+			joint_index,
+			controlMode = p.POSITION_CONTROL,
+			targetPosition = steering_angle,
+			force = 100,
+		)
 
 	def _create_car(self):
 		block_specs = CAR_BODY_BLOCKS if not SIMPLIFIED_MODEL else CAR_BODY_BLOCKS[:1]
@@ -139,30 +142,24 @@ class Car:
 		return marker_id
 
 	def _initialize_sensors(self):
-		sensor_definitions = []
-		for sensor_value in SENSORS_ANGLE_LIST:
-			if sensor_value == 0:
-				sensor_name = "front_" + str(sensor_value)
-			elif sensor_value > 0:
-				sensor_name = "front_left_" + str(sensor_value)
-			elif sensor_value < 0:
-				sensor_name = "front_right_" + str(sensor_value)
-			else:
-				sensor_name = ""
-			sensor_definitions.append((sensor_name, sensor_value))
+		return [self._create_sensor_definition(angle_deg) for angle_deg in SENSORS_ANGLE_LIST]
 
-		sensors = []
-		for name, angle_deg in sensor_definitions:
-			sensors.append(
-				{
-					"name": name,
-					"angle_offset": math.radians(angle_deg),
-					"distance": self.sensor_max_distance,
-					"marker_id": self._create_sensor_marker() if DISPLAY_SENSORS else None,
-				}
-			)
+	def _create_sensor_definition(self, angle_deg):
+		return {
+			"name": self._sensor_name(angle_deg),
+			"angle_offset": math.radians(angle_deg),
+			"distance": self.sensor_max_distance,
+			"marker_id": self._create_sensor_marker() if DISPLAY_SENSORS else None,
+		}
 
-		return sensors
+	def _sensor_name(self, angle_deg):
+		if angle_deg == 0:
+			return "front_0"
+		if angle_deg > 0:
+			return f"front_left_{angle_deg}"
+		if angle_deg < 0:
+			return f"front_right_{angle_deg}"
+		return ""
 
 	def _create_body(self, base_block):
 		base_delta_x, base_delta_z = base_block[:2]
@@ -309,48 +306,76 @@ class Car:
 			link_joint_axes.append([0, 0, 0])
 
 	def update_vehicle_state(self, turn, brake, throttle, dt, current_timestamp):
+		turn, brake, throttle = self._clamp_controls(turn, brake, throttle)
+		self._update_speed(brake, throttle, dt)
+		self._update_heading(turn, dt)
 
-		# acceleration_rate = f_prime(self.current_speed_ms)
-		acceleration_rate = 0.3
+		car_position, physics_orientation = p.getBasePositionAndOrientation(self.body_id)
+		current_linear_velocity, current_angular_velocity = p.getBaseVelocity(self.body_id)
 
-		brake_deceleration = 50.0
-		turn_speed = 1.0
+		car_orientation = self._compute_orientation(physics_orientation)
+		p.resetBasePositionAndOrientation(self.body_id, car_position, car_orientation)
 
+		planar_forward_vector = self._planar_forward_vector()
+		if current_timestamp % REFRESH_SENSORS_EVERY_FRAME == 0:
+			self._update_sensors(car_position, planar_forward_vector)
+
+		vehicle_forward_vector = self._vehicle_forward_vector(car_orientation)
+		self._apply_gravity_effect(vehicle_forward_vector, dt)
+
+		residual_velocity = self._residual_velocity(current_linear_velocity, vehicle_forward_vector)
+		linear_velocity = self._compose_linear_velocity(vehicle_forward_vector, residual_velocity)
+
+		p.resetBaseVelocity(
+			self.body_id,
+			linearVelocity = linear_velocity,
+			angularVelocity = current_angular_velocity,
+		)
+
+		update_camera(car_position, self.current_angle, dt)
+
+		return self.current_angle, self.current_speed_ms
+
+	def _clamp_controls(self, turn, brake, throttle):
 		turn = clamp(float(turn), -1.0, 1.0)
 		brake = clamp(float(brake), 0.0, 1.0)
 		throttle = clamp(float(throttle), 0.0, 1.0)
+		return turn, brake, throttle
+
+	def _update_speed(self, brake, throttle, dt):
+		acceleration_rate = 0.3
+		brake_deceleration = 50.0
 
 		target_speed_mps = throttle * MAX_SPEED_MPS
 		speed_delta_mps = (target_speed_mps - self.current_speed_ms) * acceleration_rate * dt
 		self.current_speed_ms += speed_delta_mps
 		self.current_speed_ms = max(self.current_speed_ms - brake * brake_deceleration * dt, 0.0)
 
+	def _update_heading(self, turn, dt):
+		turn_speed = 1.0
 		if self.current_speed_ms > 0.01:
 			self.current_angle += turn * turn_speed * dt
 
-		car_position, physics_orientation = p.getBasePositionAndOrientation(self.body_id)
-		current_linear_velocity, current_angular_velocity = p.getBaseVelocity(self.body_id)
-
+	def _compute_orientation(self, physics_orientation):
 		roll, pitch, _ = p.getEulerFromQuaternion(physics_orientation)
-		car_orientation = p.getQuaternionFromEuler([roll, pitch, self.current_angle])
-		p.resetBasePositionAndOrientation(self.body_id, car_position, car_orientation)
+		return p.getQuaternionFromEuler([roll, pitch, self.current_angle])
 
-		planar_forward_vector = [
+	def _planar_forward_vector(self):
+		return [
 			math.cos(self.current_angle),
 			math.sin(self.current_angle),
 			0.0,
 		]
 
-		if current_timestamp % REFRESH_SENSORS_EVERY_FRAME == 0:
-			self._update_sensors(car_position, planar_forward_vector)
-
+	def _vehicle_forward_vector(self, car_orientation):
 		orientation_matrix = p.getMatrixFromQuaternion(car_orientation)
-		vehicle_forward_vector = [
+		return [
 			orientation_matrix[0],
 			orientation_matrix[3],
 			orientation_matrix[6],
 		]
 
+	def _apply_gravity_effect(self, vehicle_forward_vector, dt):
 		gravity_vector = [0, 0, -GRAV]
 		gravity_along_forward = sum(
 			gravity_component * forward_component
@@ -361,28 +386,21 @@ class Car:
 			0.0,
 		)
 
+	def _residual_velocity(self, current_linear_velocity, vehicle_forward_vector):
 		current_speed_along_forward = sum(
 			current_linear_velocity[i] * vehicle_forward_vector[i] for i in range(3)
 		)
-		residual_velocity = [
+		return [
 			current_linear_velocity[i]
 			- current_speed_along_forward * vehicle_forward_vector[i]
 			for i in range(3)
 		]
 
-		linear_velocity = [
+	def _compose_linear_velocity(self, vehicle_forward_vector, residual_velocity):
+		return [
 			vehicle_forward_vector[i] * self.current_speed_ms + residual_velocity[i]
 			for i in range(3)
 		]
-		p.resetBaseVelocity(
-			self.body_id,
-			linearVelocity = linear_velocity,
-			angularVelocity = current_angular_velocity,
-		)
-
-		update_camera(car_position, self.current_angle, dt)
-
-		return self.current_angle, self.current_speed_ms
 
 	def _update_sensors(self, car_position, forward_vector):
 		sensor_height_offset = 0.5
@@ -471,29 +489,25 @@ class Car:
 		dy /= norm
 		dz /= norm
 
-		new_point = [0, 0]
 		current_distance = MIN_SENSOR_DISTANCE
-		continue_forward = True
-		while current_distance < MAX_SENSOR_DISTANCE and continue_forward:  # or else could just add dx and dy to new_point as step is 1
-			# could be optimized by taking the last distance, and going +1, -1, +2, -2 etc
-			new_point = [
+		new_point = [0.0, 0.0]
+
+		while current_distance < MAX_SENSOR_DISTANCE:
+			candidate_point = [
 				starting_coord[0] + dx * current_distance,
-				starting_coord[1] + dy * current_distance
+				starting_coord[1] + dy * current_distance,
 			]
-			# last point is coord[2] + dz * current_distance byt don't need z axis here, just 2d projection
 
-			continue_forward = self.get_layout_state_at_point(new_point)
-			# print("==> pt,",new_point)
-
-			# current_distance is slightly too far now, but -1 was too far before hitting track layout border, so for now add correction of -0.5
-			# maybe -1 is better ?
-			if not continue_forward:
+			if not self.get_layout_state_at_point(candidate_point):
 				new_point = [
 					starting_coord[0] + dx * (current_distance - 0.5),
-					starting_coord[1] + dy * (current_distance - 0.5)
+					starting_coord[1] + dy * (current_distance - 0.5),
 				]
-			else:
-				current_distance = current_distance + 1
+				break
+
+			new_point = candidate_point
+			current_distance += 1
+
 		return new_point + [starting_coord[2]]  # just for debug show correct height
 
 	def get_layout_state_at_point(self, point):
