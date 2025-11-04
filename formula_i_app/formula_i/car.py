@@ -401,14 +401,8 @@ class Car:
 		]
 
 	def _update_sensors(self, car_position, forward_vector):
-		sensor_height_offset = 0.5
-		sensor_front_offset = 2.5
 
-		sensor_origin = [
-			car_position[0] + forward_vector[0] * sensor_front_offset,
-			car_position[1] + forward_vector[1] * sensor_front_offset,
-			car_position[2] + sensor_height_offset,
-		]
+		sensor_origin = [car_position[0] + forward_vector[0], car_position[1] + forward_vector[1], car_position[2]]
 
 		for sensor in self.sensors:
 			direction = [
@@ -417,25 +411,12 @@ class Car:
 				0.0,
 			]
 
-			detected_point = self.point_in_that_direction(sensor_origin, direction[:2], sensor["distance"])
-			detected_distance = get_distance(detected_point, sensor_origin)
+			detected_point, detected_distance = self.point_in_that_direction(sensor_origin, direction[:2], sensor["distance"])
+			# detected_distance = get_distance(detected_point, sensor_origin)
 
 			sensor["distance"] = detected_distance
 
-			if sensor["name"] == "front":
-				front_distance = detected_distance
-
-			if DISPLAY_SENSORS and sensor["marker_id"] is not None:
-				"""
-				# TODO
-				marker_color = [1.0, 0.0, 0.0, 1.0]
-				print(sensor["distance"])
-				if (sensor["distance"]<=10):
-					marker_color = [0.0, 0.0, 1.0, 1.0]
-				#p.changeVisualShape(sensor["marker_id"], -1, rgbaColor = marker_color)
-				#p.setDebugObjectColor(sensor["marker_id"], -1, marker_color)
-				"""
-
+			if DISPLAY_SENSORS:
 				p.resetBasePositionAndOrientation(
 					sensor["marker_id"],
 					detected_point,
@@ -452,6 +433,7 @@ class Car:
 
 		current_delta = 0
 		found = None
+		marker_dist = 0
 
 		while ((old_distance + current_delta <= MAX_SENSOR_DISTANCE) or (old_distance - current_delta >= MIN_SENSOR_DISTANCE)) and (found is None):
 
@@ -467,6 +449,7 @@ class Car:
 
 				if old_state != new_state:
 					found = new_point
+					marker_dist = new_dst
 
 			current_delta += 1
 
@@ -476,6 +459,7 @@ class Car:
 			min_dist_state = self.get_layout_state_at_point(min_dist_point)
 			if not min_dist_state:
 				found = min_dist_point
+				marker_dist = MAX_SENSOR_DISTANCE
 
 			# could add else here for more optimization, put the code below in else
 
@@ -484,12 +468,14 @@ class Car:
 			max_dist_state = self.get_layout_state_at_point(max_dist_point)
 			if max_dist_state:
 				found = max_dist_point
+				marker_dist = MIN_SENSOR_DISTANCE
 
 			if found is None:
 				# found = [starting_coord[0], starting_coord[1]]  # to avoid crash ? not sure
 				raise ValueError("not found sensor")
 
-		return found + [starting_coord[2]]  # just for debug show correct height
+		marker_pos = found + [starting_coord[2]]
+		return marker_pos, marker_dist  # just for debug show correct height
 
 	def get_layout_state_at_point(self, point):
 		# todo discover why the minus point[1] is necessary, guess its related to the handling of xyz axes

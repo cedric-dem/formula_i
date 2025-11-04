@@ -241,7 +241,7 @@ def run_simulation(car):
 		time.sleep(dt)
 
 def get_track_layout_as_matrix():
-	layout = [[False for i in range(HALF_MAP_SIZE * 2)] for j in range(HALF_MAP_SIZE * 2)]
+	layout = [[False for _ in range(HALF_MAP_SIZE * 2)] for _ in range(HALF_MAP_SIZE * 2)]
 	track_layout_elements = read_layout_file(TRACK_LAYOUT_CSV_FILE)
 
 	for track_layout_element in track_layout_elements:
@@ -264,9 +264,3 @@ def read_layout_file(filename):
 			resulting_layout.append(converted_row)
 	return resulting_layout
 
-def get_distance(point1, point2):
-	return math.sqrt(
-		(point2[0] - point1[0]) ** 2 +
-		(point2[1] - point1[1]) ** 2 +
-		(point2[2] - point1[2]) ** 2
-	)
