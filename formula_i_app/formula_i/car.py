@@ -407,14 +407,10 @@ class Car:
 		for sensor in self.sensors:
 			direction = [
 				math.cos(self.current_angle + sensor["angle_offset"]),
-				math.sin(self.current_angle + sensor["angle_offset"]),
-				0.0,
+				math.sin(self.current_angle + sensor["angle_offset"])
 			]
 
-			detected_point, detected_distance = self.point_in_that_direction(sensor_origin, direction[:2], sensor["distance"])
-			# detected_distance = get_distance(detected_point, sensor_origin)
-
-			sensor["distance"] = detected_distance
+			detected_point, sensor["distance"] = self.point_in_that_direction(sensor_origin, direction, sensor["distance"])
 
 			if DISPLAY_SENSORS:
 				p.resetBasePositionAndOrientation(
