@@ -417,7 +417,7 @@ class Car:
 				0.0,
 			]
 
-			detected_point = self.point_in_that_direction(sensor_origin, direction, sensor["distance"])
+			detected_point = self.point_in_that_direction(sensor_origin, direction[:2], sensor["distance"])
 			detected_distance = get_distance(detected_point, sensor_origin)
 
 			sensor["distance"] = detected_distance
@@ -442,28 +442,25 @@ class Car:
 					self._identity_orientation
 				)
 
-	def point_in_that_direction(self, starting_coord, direction, old_value):
-		dx, dy, dz = direction
+	def point_in_that_direction(self, starting_coord, sensor_direction, old_distance):
 
-		norm = math.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
+		norm = math.sqrt(sensor_direction[0] ** 2 + sensor_direction[1] ** 2)
 		if norm == 0:
 			raise ValueError("cant be null.")
 
-		dx /= norm
-		dy /= norm
-		dz /= norm
+		delta = [sensor_direction[0] / norm, sensor_direction[1] / norm]
 
 		current_delta = 0
 		found = None
 
-		while ((old_value + current_delta <= MAX_SENSOR_DISTANCE) or (old_value - current_delta >= MIN_SENSOR_DISTANCE)) and (found is None):
+		while ((old_distance + current_delta <= MAX_SENSOR_DISTANCE) or (old_distance - current_delta >= MIN_SENSOR_DISTANCE)) and (found is None):
 
-			for direction in [+1, -1]:
-				old_dst = old_value + direction * (current_delta - 1)
-				new_dst = old_value + direction * current_delta
+			for current_direction_progression in [+1, -1]:
+				old_dst = old_distance + current_direction_progression * (current_delta - 1)
+				new_dst = old_distance + current_direction_progression * current_delta
 
-				old_point = [starting_coord[0] + dx * old_dst, starting_coord[1] + dy * old_dst]
-				new_point = [starting_coord[0] + dx * new_dst, starting_coord[1] + dy * new_dst]
+				old_point = [starting_coord[0] + delta[0] * old_dst, starting_coord[1] + delta[1] * old_dst]
+				new_point = [starting_coord[0] + delta[0] * new_dst, starting_coord[1] + delta[1] * new_dst]
 
 				old_state = self.get_layout_state_at_point(old_point)
 				new_state = self.get_layout_state_at_point(new_point)
@@ -475,7 +472,7 @@ class Car:
 
 		if found is None:
 			# if first value is false
-			min_dist_point = [starting_coord[0] + dx * MAX_SENSOR_DISTANCE, starting_coord[1] + dy * MAX_SENSOR_DISTANCE]
+			min_dist_point = [starting_coord[0] + delta[0] * MAX_SENSOR_DISTANCE, starting_coord[1] + delta[1] * MAX_SENSOR_DISTANCE]
 			min_dist_state = self.get_layout_state_at_point(min_dist_point)
 			if not min_dist_state:
 				found = min_dist_point
@@ -483,7 +480,7 @@ class Car:
 			# could add else here for more optimization, put the code below in else
 
 			# if last value is true
-			max_dist_point = [starting_coord[0] + dx * MAX_SENSOR_DISTANCE, starting_coord[1] + dy * MAX_SENSOR_DISTANCE]
+			max_dist_point = [starting_coord[0] + delta[0] * MAX_SENSOR_DISTANCE, starting_coord[1] + delta[1] * MAX_SENSOR_DISTANCE]
 			max_dist_state = self.get_layout_state_at_point(max_dist_point)
 			if max_dist_state:
 				found = max_dist_point
